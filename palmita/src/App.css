@@ -1,0 +1,390 @@
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&display=swap');
+
+/* ========== 1. RESET GLOBAL ========== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Baloo 2', cursive;
+  background: #1e1e1e;
+  color: white;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-duolingo {
+  background: #121212;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ========== 2. OVERLAY MÓVIL ========== */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  opacity: 0; pointer-events: none; transition: opacity .25s ease;
+  z-index: 110;
+}
+.overlay.visible { opacity: 1; pointer-events: auto; }
+
+/* ========== 3. BARRA SUPERIOR ========== */
+.barra-superior {
+  background: #2c2c2c; height: 70px; display: flex;
+  align-items: center; justify-content: space-between;
+  padding: 0 20px; border-bottom: 3px solid #FFCC00;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+}
+.izquierda { display: flex; align-items: center; gap: 12px; }
+.menu-boton { cursor: pointer; color: #FFCC00; display: flex; align-items: center; }
+.logo {
+  font-size: clamp(20px, 2.2vw, 32px); font-weight: 800;
+  color: #FFCC00; text-shadow: 2px 2px 0 #0066FF;
+}
+.derecha { display: flex; align-items: center; gap: 16px; }
+.gemas, .corazones, .racha {
+  display: flex; align-items: center; gap: 8px;
+  background: #333; padding: 6px 12px; border-radius: 30px;
+  font-weight: bold; font-size: clamp(12px, 1.8vw, 18px);
+}
+.icono-gema { color: #58cc02; }
+.llama { color: #FF9600; }
+
+/* ========== 4. MENÚ LATERAL ========== */
+.menu-lateral {
+  position: fixed; left: 0; top: 70px; width: 240px;
+  height: calc(100vh - 70px); background: #2c2c2c; padding-top: 30px;
+  z-index: 105; border-right: 2px solid #333;
+}
+.menu-lateral ul { 
+  list-style: none; display: flex; flex-direction: column; height: 100%; 
+}
+.menu-lateral li {
+  padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+  font-size: clamp(14px, 2.2vw, 20px); cursor: pointer; color: #aaa; transition: all 0.3s;
+}
+.menu-lateral li:hover, .menu-lateral li.activo {
+  background: #0066FF; color: white; border-left: 6px solid #FFCC00;
+}
+
+/* ========== 5. CONTENIDO PRINCIPAL ========== */
+.contenido-principal {
+  margin-left: 240px;
+  margin-top: 70px;
+  height: calc(100vh - 70px);
+  width: calc(100% - 240px);
+  display: flex;
+  justify-content: center;
+  align-items: center; 
+  padding: 20px;
+  overflow-y: auto; /* Permitir scroll en la vista principal */
+}
+
+/* === FONDO TECNOLÓGICO "CODE EDITOR" (Bienvenida) === */
+.contenido-principal.full-width {
+  margin-left: 0 !important;
+  margin-top: 0 !important;
+  width: 100% !important;
+  height: 100vh !important;
+  padding: 0;
+  
+  background-color: #0d1117; 
+
+  background-image: 
+    linear-gradient(rgba(88, 204, 2, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(88, 204, 2, 0.05) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, rgba(88, 204, 2, 0.15) 0%, rgba(13, 17, 23, 0) 60%);
+
+  background-size: 40px 40px, 40px 40px, 100% 100%;
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* === TARJETA CENTRAL (CON BORDE NEÓN) === */
+.tarjeta-central {
+  background: #2c2c2c;
+  border-radius: 24px;
+  padding: 30px 40px;
+  text-align: center;
+  
+  width: 100%;
+  max-width: 480px;
+  max-height: 95vh;
+  
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  
+  position: relative; 
+  margin: auto; 
+  z-index: 10;
+  
+  border: none;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5); 
+}
+
+/* Pseudo-elemento para el Borde Neón Animado de la tarjeta */
+.tarjeta-central::before {
+  content: '';
+  position: absolute;
+  top: -4px; bottom: -4px; left: -4px; right: -4px;
+  
+  background: linear-gradient(
+    45deg, 
+    #39FF14,  /* Verde Neón Puro */
+    #008f11,  /* Verde Lima Eléctrico */
+    #39FF14
+  );
+  
+  background-size: 400%;
+  animation: neon-pulse 3s linear infinite;
+  
+  border-radius: 28px;
+  z-index: -1;
+  
+  filter: blur(10px);
+  opacity: 1;
+}
+
+/* Capa de fondo sólido para tapar el centro del neón */
+.tarjeta-central::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #2c2c2c; 
+  border-radius: 24px;
+  z-index: -1;
+}
+
+@keyframes neon-pulse {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.bienvenida { color: #FFFFFF; font-size: 32px; margin-bottom: 5px; line-height: 1.2; position: relative; z-index: 2; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.mensaje { font-size: 16px; color: #aaa; margin-bottom: 20px; position: relative; z-index: 2; }
+
+/* === BOTONES ANIMADOS (HOVER & BRILLO) === */
+.boton-empezar, .boton-ingresar {
+  color: white; border: none;
+  padding: 12px 30px; font-size: 18px; font-weight: 800;
+  border-radius: 999px; cursor: pointer; 
+  margin: 8px; 
+  width: 100%; max-width: 280px;
+  position: relative; overflow: hidden;
+  transition: transform 0.1s ease;
+  z-index: 2;
+}
+
+.boton-empezar { background: #58cc02; box-shadow: 0 6px 0 #46a302; }
+.boton-ingresar { background: #0066FF; box-shadow: 0 6px 0 #004bbd; }
+
+/* Efecto de barrido de luz en los botones */
+.boton-empezar::after, .boton-ingresar::after {
+  content: "";
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  transition: left 0.5s ease;
+  z-index: -1;
+}
+
+.boton-empezar:hover::after, .boton-ingresar:hover::after { left: 100%; }
+.boton-empezar:hover, .boton-ingresar:hover { transform: scale(1.05); }
+.boton-empezar:active, .boton-ingresar:active { transform: translateY(4px); box-shadow: none; }
+
+/* ========== 6. ESTILOS PANTALLAS INTERIORES ========== */
+.pantalla-interior { 
+  width: 100%; 
+  max-width: 700px; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  animation: fadeIn 0.5s ease; 
+  overflow-y: auto; 
+  max-height: 100%; 
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.titulo-seccion { color: #FFCC00; margin-bottom: 30px; font-size: 28px; text-transform: uppercase; letter-spacing: 1px; }
+
+/* ========== 7. ESTILOS MAPA DE AVENTURA (Ruta Vertical Ordenada) ========== */
+
+.mapa-aventura-container {
+  width: 100%;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.mapa-islas {
+  position: relative;
+  width: 100%;
+  max-width: 600px; 
+  padding-bottom: 80px;
+  
+  /* El camino central verde fijo */
+  border-left: 6px solid #39FF14; 
+  box-shadow: -2px 0 10px rgba(57, 255, 20, 0.4);
+  /* Asegura que el camino empiece y termine correctamente */
+  margin-top: 30px;
+  padding-left: 0;
+}
+
+/* Nodos individuales (Islas) */
+.isla-nivel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 10px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  
+  /* Separación vertical uniforme */
+  margin-bottom: 50px;
+  width: 100%;
+}
+
+.isla-nivel.centrado {
+  left: 0; /* Asegura que todos estén alineados con el borde izquierdo del mapa-islas */
+  align-items: flex-start;
+  text-align: left;
+  padding-left: 20px;
+}
+
+/* Icono (El punto del camino) */
+.icono-isla {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2em;
+  background: #2c2c2c;
+  border: 4px solid #00FF00;
+  box-shadow: 0 0 12px rgba(0, 255, 0, 0.8);
+  z-index: 20; 
+  
+  /* Ajuste de posición para que se superponga al camino central */
+  position: absolute;
+  top: -10px;
+  left: -40px; 
+}
+
+.isla-nivel.bloqueada .icono-isla {
+  background: #1a1a1a;
+  border-color: #555;
+  box-shadow: none;
+  cursor: not-allowed;
+  filter: grayscale(100%);
+  color: #777;
+}
+
+.isla-nivel.nivel-activo .icono-isla {
+  animation: pulse-active 1.5s infinite; 
+}
+
+@keyframes pulse-active {
+  0% { transform: scale(1); box-shadow: 0 0 0 rgba(0, 255, 0, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 20px rgba(0, 255, 0, 0.9); }
+  100% { transform: scale(1); box-shadow: 0 0 0 rgba(0, 255, 0, 0.7); }
+}
+
+.etiqueta-nivel {
+  margin-top: 5px;
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+/* Reemplazo de los estilos de zigzag por la columna central */
+.isla-nivel.centrado .icono-isla {
+  margin-right: 0;
+  margin-left: 0;
+  top: -40px; /* Alineación vertical */
+  left: -43px; /* Centrado en el borde del camino (6px) */
+}
+
+
+/* Grid de Trofeos */
+.grid-trofeos { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 20px; width: 100%; }
+.card-trofeo { background: #2c2c2c; padding: 20px; border-radius: 16px; text-align: center; border: 2px solid #444; }
+.card-trofeo.ganado { border-color: #FFCC00; background: rgba(255, 204, 0, 0.1); }
+.card-trofeo h3 { font-size: 16px; margin: 10px 0 5px; color: white; }
+.card-trofeo p { font-size: 12px; color: #aaa; }
+.perfil-card { background: #2c2c2c; padding: 40px; border-radius: 24px; text-align: center; width: 100%; border: 2px solid #444; }
+.avatar-grande { width: 100px; height: 100px; background: #0066FF; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; color: white; border: 4px solid #121212; }
+.email-usuario { color: #888; margin-bottom: 30px; }
+.stats-perfil { display: flex; justify-content: space-around; border-top: 2px solid #444; padding-top: 20px; }
+.stat-item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.stat-item strong { font-size: 20px; color: white; }
+.stat-item small { color: #aaa; text-transform: uppercase; font-size: 12px; }
+.modo-profe { margin: 0 !important; padding: 20px !important; width: 100vw !important; height: 100vh !important; background: #18181b; overflow-y: auto; display: block; position: fixed; top: 0; left: 0; z-index: 500; }
+.dashboard-profesor { max-width: 1000px; margin: 0 auto; color: white; }
+.header-profe { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #333; }
+.titulo-profe h2 { color: #FFCC00; margin-bottom: 5px; }
+.titulo-profe span { color: #888; font-size: 14px; }
+.btn-salir-profe { background: #333; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
+.btn-salir-profe:hover { background: #ff4b4b; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+.stat-card { background: #27272a; padding: 20px; border-radius: 12px; display: flex; align-items: center; gap: 15px; border: 1px solid #333; }
+.stat-card h3 { font-size: 24px; margin: 0; }
+.stat-card p { color: #aaa; margin: 0; font-size: 14px; }
+.stat-card.azul svg { color: #0066FF; }
+.stat-card.verde svg { color: #58cc02; }
+.stat-card.naranja svg { color: #FF9600; }
+.tabla-container { background: #27272a; padding: 20px; border-radius: 16px; border: 1px solid #333; }
+.tabla-container h3 { margin-bottom: 20px; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 12px; color: #888; border-bottom: 1px solid #444; font-size: 14px; }
+td { padding: 16px 12px; border-bottom: 1px solid #333; }
+tr:last-child td { border-bottom: none; }
+.fw-bold { font-weight: bold; color: white; }
+.badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+.badge.activo { background: rgba(88, 204, 2, 0.2); color: #58cc02; }
+.badge.alerta { background: rgba(255, 150, 0, 0.2); color: #FF9600; }
+.badge.inactivo { background: rgba(255, 255, 255, 0.1); color: #aaa; }
+.btn-ver { background: none; border: 1px solid #555; color: #ccc; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.btn-ver:hover { background: white; color: black; }
+.auth-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.85); display: flex; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(5px); }
+.auth-card { background-color: #1f1f1f; border: 2px solid #333; border-radius: 24px; padding: 40px 30px; width: 90%; max-width: 420px; position: relative; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+.btn-cerrar-modal { position: absolute; top: 15px; right: 15px; background: #333; border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; }
+.btn-cerrar-modal:hover { background: #444; }
+.auth-titulo { text-align: center; color: white; font-size: 2rem; margin-bottom: 25px; }
+.auth-tabs { display: flex; background: #121212; border-radius: 12px; padding: 4px; margin-bottom: 25px; }
+.auth-tab { flex: 1; background: transparent; border: none; color: #888; padding: 10px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; }
+.auth-tab.activo { background: #333; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.auth-form { display: flex; flex-direction: column; gap: 16px; }
+.input-group { position: relative; width: 100%; }
+.input-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #888; z-index: 2; pointer-events: none; }
+.input-group input { width: 100%; padding: 16px 16px 16px 48px; background-color: #2a2a2a; border: 2px solid #444; border-radius: 16px; color: white; font-size: 16px; font-family: inherit; transition: border-color 0.3s; }
+.input-group input:focus { outline: none; border-color: #0066FF; background-color: #333; }
+.btn-auth-submit { margin-top: 10px; background: linear-gradient(to bottom, #58cc02, #46a302); color: white; border: none; padding: 16px; border-radius: 16px; font-size: 18px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 0 #3d8b03; display: flex; justify-content: center; align-items: center; gap: 8px; }
+.btn-auth-submit:active { transform: translateY(4px); box-shadow: none; }
+.auth-footer { margin-top: 20px; text-align: center; color: #aaa; font-size: 14px; }
+.auth-footer span { color: #0066FF; font-weight: bold; cursor: pointer; margin-left: 5px; text-decoration: underline; }
+@media (max-width: 1024px) {
+  .menu-lateral { width: 200px; }
+  .contenido-principal:not(.full-width) { margin-left: 200px; width: calc(100% - 200px); }
+}
+@media (max-width: 768px) {
+  .barra-superior { padding: 0 12px; }
+  .derecha { gap: 12px; }
+  .menu-lateral { transform: translateX(-100%); transition: transform .3s; width: 75%; max-width: 280px; z-index: 130; border-right: none; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+  .menu-lateral.abierto { transform: translateX(0); }
+  .contenido-principal:not(.full-width) { margin-left: 0; width: 100%; }
+}
+@media (max-width: 480px) {
+  .barra-superior { height: 60px; }
+  .menu-lateral { top: 60px; height: calc(100vh - 60px); }
+  .gemas, .corazones, .racha { padding: 4px 10px; }
+  .contenido-principal:not(.full-width) { margin-top: 60px; height: calc(100vh - 60px); }
+  .auth-card { width: 95%; padding: 30px 20px; }
+}

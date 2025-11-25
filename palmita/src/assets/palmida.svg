@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+  <defs>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="2.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="leafMain" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#B8FF7A"/>
+      <stop offset="100%" stop-color="#41B92F"/>
+    </linearGradient>
+    <linearGradient id="leafShade" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7EE35A"/>
+      <stop offset="100%" stop-color="#3AA300"/>
+    </linearGradient>
+    <linearGradient id="trunkMain" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8DF06F"/>
+      <stop offset="100%" stop-color="#3FB238"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Palmera estilo mascota mejorada: contorno más marcado, colores vivos -->
+  <g stroke="#0B2A26" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" filter="url(#softGlow)">
+    <!-- Frondas (4 brazos) -->
+    <g>
+      <path d="M150 110 C112 92, 88 86, 56 92 C92 100, 114 112, 132 124 C140 116, 146 112, 150 110 Z" fill="url(#leafMain)"/>
+      <path d="M150 110 C188 92, 212 86, 244 92 C208 100, 186 112, 168 124 C160 116, 154 112, 150 110 Z" fill="url(#leafMain)"/>
+      <path d="M150 112 C138 80, 120 60, 92 54 C116 70, 132 92, 142 118 C145 116, 148 114, 150 112 Z" fill="url(#leafMain)"/>
+      <path d="M150 112 C162 80, 180 60, 208 54 C184 70, 168 92, 158 118 C155 116, 152 114, 150 112 Z" fill="url(#leafMain)"/>
+      <!-- sombreados internos -->
+      <path d="M150 114 C118 104, 96 104, 74 106 C100 110, 118 118, 132 126" fill="none" stroke="url(#leafShade)" stroke-width="6" opacity="0.45"/>
+      <path d="M150 114 C182 104, 204 104, 226 106 C200 110, 182 118, 168 126" fill="none" stroke="url(#leafShade)" stroke-width="6" opacity="0.45"/>
+    </g>
+
+    <!-- Tronco segmentado con base redondeada -->
+    <g>
+      <path d="M144 118 C132 148, 132 182, 150 205 C168 182, 168 148, 156 118 Z" fill="url(#trunkMain)"/>
+      <path d="M150 205 C161 192, 159 182, 150 171 C141 182, 139 192, 150 205 Z" fill="#57C23F"/>
+      <path d="M150 171 C161 157, 159 147, 150 136 C141 147, 139 157, 150 171 Z" fill="#57C23F"/>
+      <path d="M150 238 C163 225, 160 215, 150 203 C140 215, 137 225, 150 238 Z" fill="#57C23F"/>
+      <path d="M150 118 C146 156, 150 196, 150 238" fill="none"/>
+    </g>
+
+    <!-- Gafas pixel estilo "deal with it" -->
+    <g id="glasses" transform="translate(95,138)" stroke="#0B0B0B" stroke-width="2">
+      <!-- puente -->
+      <rect x="38" y="8" width="12" height="8" fill="#111"/>
+      <!-- lente izquierdo base -->
+      <rect x="0" y="8" width="40" height="18" fill="#111"/>
+      <!-- lente derecho base -->
+      <rect x="50" y="8" width="40" height="18" fill="#111"/>
+      <!-- patillas simples -->
+      <rect x="-10" y="12" width="10" height="6" fill="#111"/>
+      <rect x="90" y="12" width="10" height="6" fill="#111"/>
+      <!-- patrón pixel verde en ambos lentes -->
+      <!-- izquierdo -->
+      <rect x="4"  y="12" width="4" height="4" fill="#36FF5A"/>
+      <rect x="10" y="16" width="4" height="4" fill="#36FF5A"/>
+      <rect x="16" y="12" width="4" height="4" fill="#36FF5A"/>
+      <rect x="22" y="16" width="4" height="4" fill="#36FF5A"/>
+      <rect x="28" y="12" width="4" height="4" fill="#36FF5A"/>
+      <!-- derecho -->
+      <rect x="54" y="12" width="4" height="4" fill="#36FF5A"/>
+      <rect x="60" y="16" width="4" height="4" fill="#36FF5A"/>
+      <rect x="66" y="12" width="4" height="4" fill="#36FF5A"/>
+      <rect x="72" y="16" width="4" height="4" fill="#36FF5A"/>
+      <rect x="78" y="12" width="4" height="4" fill="#36FF5A"/>
+    </g>
+
+    <!-- Carita (boca visible bajo las gafas) -->
+    <g>
+      <path d="M136 167 C146 178, 154 178, 164 167" stroke="#0B2A26" stroke-width="6" fill="#F0635A"/>
+    </g>
+  </g>
+</svg>
