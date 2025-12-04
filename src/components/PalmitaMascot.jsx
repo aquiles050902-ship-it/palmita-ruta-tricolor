@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
-export default function PalmitaMascot({ width = 200, gafasId = 1, sombreroId = 0, tipoLluvia = 0, regando = false }) {
+// Agregamos la prop 'crecimiento' (default 0)
+export default function PalmitaMascot({ width = 200, gafasId = 1, sombreroId = 0, tipoLluvia = 0, regando = false, crecimiento = 0 }) {
   const [cocoKey, setCocoKey] = useState(0); 
 
   useEffect(() => {
@@ -11,6 +12,10 @@ export default function PalmitaMascot({ width = 200, gafasId = 1, sombreroId = 0
   const handleAnimationComplete = () => {
     if (!regando) setCocoKey(prevKey => prevKey + 1); 
   };
+
+  // Cálculo de escala basado en crecimiento (0 a 10)
+  // Nivel 0 = 40% del tamaño, Nivel 10 = 100% del tamaño
+  const scaleFactor = 0.4 + (crecimiento * 0.06); 
 
   // === DIBUJOS DE SOMBREROS (1-10) ===
   const renderSombrero = () => {
@@ -66,21 +71,16 @@ export default function PalmitaMascot({ width = 200, gafasId = 1, sombreroId = 0
     }
   };
 
-  // === RENDERIZADO DE LLUVIA ===
   const renderRain = (i) => {
-    if (tipoLluvia === 1) { // Agua normal
+    if (tipoLluvia === 1) { 
         return <div key={i} style={{ position: 'absolute', left: `${10 + i*18}%`, width: '6px', height: '15px', background: '#00C2CB', borderRadius: '10px' }}></div>
-    } else if (tipoLluvia === 2) { // Código Matrix
-        return <div key={i} style={{ position: 'absolute', left: `${10 + i*18}%`, color: '#0f0', fontSize: '14px', fontFamily: 'monospace' }}>{i%2===0 ? '1' : '0'}</div>
-    } else { // Gemas (Oro)
-        return <div key={i} style={{ position: 'absolute', left: `${10 + i*18}%`, fontSize: '16px' }}>💎</div>
-    }
+    } 
+    return null;
   }
 
   return (
     <div style={{ width: width, height: width, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', overflow: 'visible', position: 'relative' }}>
       
-      {/* ANIMACIÓN DE LLUVIA */}
       {regando && (
         <div style={{ position: 'absolute', top: -50, width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none' }}>
            {[...Array(6)].map((_, i) => (
@@ -107,7 +107,12 @@ export default function PalmitaMascot({ width = 200, gafasId = 1, sombreroId = 0
           <linearGradient id="hackerLensGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#00E676"/><stop offset="100%" stopColor="#1DE9B6"/></linearGradient>
         </defs>
 
-        <g filter="url(#palmitaShadow)">
+        {/* GRUPO PRINCIPAL CON ESCALADO SEGÚN NIVEL */}
+        <motion.g 
+            filter="url(#palmitaShadow)"
+            animate={{ scale: scaleFactor }} // AQUÍ OCURRE LA MAGIA DEL CRECIMIENTO
+            style={{ transformOrigin: "bottom center" }} // Crece desde el suelo hacia arriba
+        >
           <motion.g
             animate={regando ? { scale: [1, 1.05, 1], y: [0, -5, 0] } : { y: [0, -8, 0], rotate: [0, 2, -2, 0] }}
             transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
@@ -136,7 +141,7 @@ export default function PalmitaMascot({ width = 200, gafasId = 1, sombreroId = 0
           </motion.g>
 
           <motion.circle key={cocoKey} cx="140" cy="130" r="10" fill="url(#cocoGradient)" stroke="#5A2D0C" strokeWidth="2" initial={{ opacity: 0, y: 0 }} animate={{ opacity: [0, 1, 1, 0], y: [0, 30, 200] }} transition={{ duration: 1.5 }} />
-        </g>
+        </motion.g>
       </svg>
     </div>
   );

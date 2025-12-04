@@ -11,16 +11,11 @@ export default function TeacherDashboard({ alSalir }) {
     const data = localStorage.getItem('palmita_demo_users');
     if (data) {
         const todosLosUsuarios = JSON.parse(data);
-        
-        // --- CORRECCIÓN AQUÍ ---
-        // Filtramos para que SOLO pasen los estudiantes. 
-        // Si el usuario es 'teacher' o 'admin', lo ignoramos.
         const soloEstudiantes = todosLosUsuarios.filter(u => u.rol === 'estudiante');
 
         const listaFormateada = soloEstudiantes.map((u, index) => ({
             id: index,
             nombre: u.nombre,
-            // Si es estudiante nuevo sin progreso, asumimos nivel 0
             nivel: u.progresoNiveles ? Math.max(0, ...u.progresoNiveles) : 0,
             racha: u.racha || 0,
             gemas: u.gemas || 0,
@@ -41,10 +36,9 @@ export default function TeacherDashboard({ alSalir }) {
     const data = localStorage.getItem('palmita_demo_users');
     if (data) {
         let usuarios = JSON.parse(data);
-        // Borramos al usuario de la base de datos general por su nombre
         const usuariosActualizados = usuarios.filter(u => u.nombre !== alumnoAEliminar);
         localStorage.setItem('palmita_demo_users', JSON.stringify(usuariosActualizados));
-        cargarDatos(); // Recargamos la tabla (que aplicará el filtro de nuevo)
+        cargarDatos(); 
     }
     setAlumnoAEliminar(null);
   };
@@ -57,11 +51,11 @@ export default function TeacherDashboard({ alSalir }) {
 
   return (
     <div className="dashboard-profesor">
-      {/* HEADER */}
       <header className="header-profe">
         <div className="perfil-escuela">
           <div className="logo-profe-container">
-             <PalmitaMascot width={60} gafasId={2} /> 
+             {/* CORRECCIÓN: crecimiento={10} */}
+             <PalmitaMascot width={60} gafasId={2} crecimiento={10} /> 
           </div>
           <div>
             <h2>Panel Docente</h2>
@@ -79,7 +73,6 @@ export default function TeacherDashboard({ alSalir }) {
         </div>
       </header>
 
-      {/* TARJETAS */}
       <div className="stats-grid">
         <div className="stat-card azul">
           <div className="icono-stat"><Users size={28}/></div>
@@ -88,14 +81,12 @@ export default function TeacherDashboard({ alSalir }) {
         <div className="stat-card verde">
           <div className="icono-stat"><TrendingUp size={28}/></div>
           <div>
-            {/* Cálculo de promedio seguro (evita división por cero) */}
             <h3>{alumnos.length > 0 ? (alumnos.reduce((acc, v) => acc + v.nivel, 0) / alumnos.length).toFixed(1) : 0}</h3>
             <p>Nivel Promedio</p>
           </div>
         </div>
       </div>
 
-      {/* TABLA DE REGISTRO */}
       <div className="tabla-container">
         <div className="tabla-header">
             <h3>📊 Progreso en Tiempo Real</h3>
@@ -155,7 +146,6 @@ export default function TeacherDashboard({ alSalir }) {
         </div>
       </div>
 
-      {/* MODAL DE CONFIRMACIÓN */}
       <AnimatePresence>
         {alumnoAEliminar && (
           <div className="auth-overlay" style={{zIndex: 3000}}>

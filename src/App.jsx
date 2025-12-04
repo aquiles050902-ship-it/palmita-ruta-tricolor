@@ -50,11 +50,9 @@ function App() {
         localStorage.setItem('rt_hasVisited', '1');
       }
     } catch (_) { }
-    // Inicializa audio tras primer gesto del usuario
     audio.initOnUserGesture();
   }, []);
 
-  // --- TEMA (claro/oscuro) ---
   const [theme, setTheme] = useState(() => {
     try {
       const stored = localStorage.getItem('theme');
@@ -72,9 +70,15 @@ function App() {
 
   // --- LOGINS ---
   const handleLoginExitoso = (datosUsuario) => {
-    setUsuario(datosUsuario); // Cargamos al usuario
+    const usuarioConInventario = {
+        ...datosUsuario,
+        inventarioGafas: datosUsuario.inventarioGafas || [0, 1], 
+        inventarioSombreros: datosUsuario.inventarioSombreros || [0], 
+        nivelCrecimiento: datosUsuario.nivelCrecimiento || 0 
+    };
+
+    setUsuario(usuarioConInventario); 
     
-    // Restauramos su progreso visual en el mapa
     if (datosUsuario.progresoNiveles) {
         const nuevosNiveles = niveles.map(n => {
             if (datosUsuario.progresoNiveles.includes(n.id)) return { ...n, estado: 'completado' };
@@ -95,17 +99,23 @@ function App() {
     setVistaActual('dashboard_profe');
   };
 
-  // --- SISTEMA DE RECOMPENSAS ---
+  // --- FUNCIÓN GENÉRICA PARA ACTUALIZAR USUARIO ---
+  const actualizarUsuarioGlobal = (nuevoUsuario) => {
+    setUsuario(nuevoUsuario);
+    const todosLosUsuarios = JSON.parse(localStorage.getItem('palmita_demo_users') || '[]');
+    const indice = todosLosUsuarios.findIndex(u => u.nombre === nuevoUsuario.nombre);
+    if (indice !== -1) {
+        todosLosUsuarios[indice] = nuevoUsuario;
+        localStorage.setItem('palmita_demo_users', JSON.stringify(todosLosUsuarios));
+    }
+  };
+
   const guardarProgresoNivel = (nivelId) => {
     if (!usuario) return;
-
     const progresoActual = usuario.progresoNiveles || [];
     
-    // Solo damos recompensa si es la PRIMERA VEZ que pasa el nivel
     if (!progresoActual.includes(nivelId)) {
         const nuevoProgreso = [...progresoActual, nivelId];
-        
-        // LÓGICA DE PREMIOS: +1 Racha, +50 Gemas
         const usuarioActualizado = { 
             ...usuario, 
             progresoNiveles: nuevoProgreso, 
@@ -113,19 +123,8 @@ function App() {
             gemas: (usuario.gemas || 0) + 50 
         };
         
-        // 1. Actualizamos la App (Header se actualiza solo)
-        setUsuario(usuarioActualizado);
+        actualizarUsuarioGlobal(usuarioActualizado);
 
-        // 2. Guardamos en Base de Datos Local
-        const todosLosUsuarios = JSON.parse(localStorage.getItem('palmita_demo_users') || '[]');
-        const indice = todosLosUsuarios.findIndex(u => u.nombre === usuario.nombre);
-        
-        if (indice !== -1) {
-            todosLosUsuarios[indice] = usuarioActualizado;
-            localStorage.setItem('palmita_demo_users', JSON.stringify(todosLosUsuarios));
-        }
-
-        // 3. Desbloqueamos el siguiente nivel en el mapa
         const mapaActualizado = niveles.map(n => {
             if (n.id === nivelId) return { ...n, estado: 'completado' };
             if (n.id === nivelId + 1) return { ...n, estado: 'actual' };
@@ -141,7 +140,6 @@ function App() {
   return (
     <div className={`app-duolingo theme-${theme}`}>
       {mostrarNavegacion && (
-        // Pasamos 'usuario' al Header para que muestre gemas reales
         <HeaderBar 
             setMenuAbierto={setMenuAbierto} 
             setMenuAmpliado={setMenuAmpliado} 
@@ -164,7 +162,10 @@ function App() {
           <>
             <MatrixParticles />
             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="tarjeta-central" style={{ zIndex: 10 }}>
-              <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center', width: '100%' }}><PalmitaMascot width={220} gafasId={1} /></div>
+              <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center', width: '100%' }}>
+                {/* CORRECCIÓN: crecimiento={10} para que se vea GRANDE siempre en el inicio */}
+                <PalmitaMascot width={220} gafasId={1} crecimiento={10} />
+              </div>
               <h2 className="bienvenida">¡Bienvenido!</h2>
               <p className="mensaje">Aprende lógica de programación jugando.</p>
               <motion.button whileHover={{ scale: 1.05 }} className="boton-empezar" onClick={() => { audio.playSfx('click'); setMostrarLogin(true); }}>EMPEZAR</motion.button>
@@ -212,7 +213,6 @@ function App() {
             nivelId={nivelSeleccionado}
             alCerrar={() => setVistaActual('mapa')} 
             alCompletar={() => {
-              // Aquí sucede la magia de la recompensa
               guardarProgresoNivel(nivelSeleccionado);
               setVistaActual('mapa');
             }} 
@@ -220,7 +220,7 @@ function App() {
         )}
 
         {vistaActual === 'logros' && <TrophyRoom usuario={usuario} />}
-        {vistaActual === 'mascota' && <PalmitaCare />}
+        {vistaActual === 'mascota' && <PalmitaCare usuario={usuario} actualizarUsuario={actualizarUsuarioGlobal} />}
         {vistaActual === 'perfil' && <UserProfile usuario={usuario} />}
         {vistaActual === 'dashboard_profe' && <TeacherDashboard alSalir={() => setVistaActual('bienvenida')} />}
         {vistaActual === 'audio' && <AudioSettings />}

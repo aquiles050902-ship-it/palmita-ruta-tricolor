@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { X, CheckCircle, AlertCircle, Heart, RefreshCw } from "lucide-react";
+import audio from '../utils/audio'; // <--- 1. IMPORTAMOS EL AUDIO
 
 // === BASE DE DATOS DE PREGUNTAS (10 Niveles Educativos) ===
 const QUESTIONS_DB = {
@@ -127,14 +128,12 @@ const QUESTIONS_DB = {
 };
 
 export default function QuizEngine({ alCerrar, alCompletar, nivelId = 1 }) {
-  // Cargar la pregunta del nivel seleccionado (o la 1 por defecto si no existe)
   const preguntaActual = QUESTIONS_DB[nivelId] || QUESTIONS_DB[1];
   
   const [seleccion, setSeleccion] = useState(null);
-  const [estado, setEstado] = useState("pendiente"); // estados: pendiente, correcto, error_intento, revelado
-  const [vidas, setVidas] = useState(3); // 3 Intentos por nivel
+  const [estado, setEstado] = useState("pendiente"); 
+  const [vidas, setVidas] = useState(3); 
 
-  // Reiniciar todo al cargar un nuevo nivel
   useEffect(() => {
     setSeleccion(null);
     setEstado("pendiente");
@@ -147,29 +146,27 @@ export default function QuizEngine({ alCerrar, alCompletar, nivelId = 1 }) {
     if (seleccion === preguntaActual.correcta) {
       // --- GANASTE ---
       setEstado("correcto");
+      audio.playSfx('success'); // <--- 2. SONIDO DE ÉXITO
     } else {
       // --- FALLASTE ---
       const nuevasVidas = vidas - 1;
       setVidas(nuevasVidas);
+      audio.playSfx('error'); // <--- 3. SONIDO DE ERROR
       
       if (nuevasVidas > 0) {
-        // Si te quedan vidas: Muestra error pero NO la respuesta
         setEstado("error_intento");
         
-        // Después de 2 segundos, te deja intentar de nuevo (borra el rojo)
         setTimeout(() => {
             setEstado("pendiente");
-            setSeleccion(null); // Limpiamos selección para que elija otra
+            setSeleccion(null); 
         }, 2000);
 
       } else {
-        // 0 Vidas: Se acabó, mostramos la respuesta para que avance
         setEstado("revelado");
       }
     }
   };
 
-  // Función para pasar al siguiente nivel
   const avanzar = () => {
     alCompletar(true);
   };
@@ -182,14 +179,13 @@ export default function QuizEngine({ alCerrar, alCompletar, nivelId = 1 }) {
           <X size={32} color="#aaa" />
         </button>
         
-        {/* Contador de Vidas */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: '#ff4b4b', fontWeight: '800', fontSize: '22px' }}>
             <Heart fill={vidas > 0 ? "#ff4b4b" : "none"} size={30} /> 
             {vidas}
         </div>
       </div>
 
-      {/* Contenido con Scroll */}
+      {/* Contenido */}
       <div className="quiz-contenido">
         <h2 className="quiz-titulo">{preguntaActual.titulo}</h2>
         <p className="quiz-instruccion">{preguntaActual.instruccion}</p>
@@ -200,16 +196,12 @@ export default function QuizEngine({ alCerrar, alCompletar, nivelId = 1 }) {
           {preguntaActual.opciones.map((op, index) => {
             let claseExtra = "";
             
-            // Lógica visual de las tarjetas
             if (seleccion === op.id) claseExtra = "seleccionada";
             
-            // Caso 1: Ganaste
             if (estado === 'correcto' && op.id === preguntaActual.correcta) claseExtra = "correcta-verde";
             
-            // Caso 2: Perdiste vidas (error temporal) -> Se pone rojo momentáneamente
             if (estado === 'error_intento' && seleccion === op.id) claseExtra = "error";
 
-            // Caso 3: Perdiste todas las vidas (revelado) -> Muestra la correcta en verde y tu error en rojo
             if (estado === 'revelado') {
                 if (op.id === preguntaActual.correcta) claseExtra = "correcta-verde";
                 else if (seleccion === op.id) claseExtra = "error";
@@ -221,9 +213,9 @@ export default function QuizEngine({ alCerrar, alCompletar, nivelId = 1 }) {
                 whileTap={{ scale: 0.98 }}
                 className={`opcion-card ${claseExtra}`}
                 onClick={() => {
-                  // Solo deja seleccionar si no hemos terminado ni estamos en pausa de error
                   if (estado === 'pendiente') {
                     setSeleccion(op.id);
+                    audio.playSfx('click'); // <--- 4. OPCIONAL: SONIDO AL SELECCIONAR
                   }
                 }}
               >
@@ -235,7 +227,7 @@ export default function QuizEngine({ alCerrar, alCompletar, nivelId = 1 }) {
         </div>
       </div>
 
-      {/* Footer Fijo */}
+      {/* Footer */}
       <div className={`quiz-footer ${estado === 'error_intento' ? 'error' : (estado === 'correcto' || estado === 'revelado' ? 'correcto' : '')}`}>
         
         <div className="mensaje-feedback">

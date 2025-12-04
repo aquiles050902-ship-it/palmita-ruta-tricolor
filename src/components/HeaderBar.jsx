@@ -2,13 +2,13 @@ import { motion } from "framer-motion";
 import { Flame, Gem, ChevronsLeft, ChevronsRight } from "lucide-react";
 import PalmitaMascot from "./PalmitaMascot"; 
 
-export default function HeaderBar({ setMenuAmpliado, menuAmpliado, usuario, playSound, theme, onToggleTheme }) { // Recibimos playSound y tema
+export default function HeaderBar({ setMenuAmpliado, menuAmpliado, usuario, playSound, theme, onToggleTheme }) { 
   const gemas = usuario ? usuario.gemas : 0;
   const racha = usuario ? usuario.racha : 0;
 
   const toggleMenu = () => {
       setMenuAmpliado(!menuAmpliado);
-      playSound('click_menu'); // Ejecutamos SFX al colapsar/expandir
+      if(playSound) playSound('click_menu'); 
   }
 
   return (
@@ -17,14 +17,15 @@ export default function HeaderBar({ setMenuAmpliado, menuAmpliado, usuario, play
         <motion.div 
           whileHover={{ scale: 1.1 }} 
           className="menu-boton" 
-          onClick={toggleMenu} // Usamos la nueva función
+          onClick={toggleMenu} 
           style={{ cursor: 'pointer', marginRight: '15px' }}
         >
           {menuAmpliado ? <ChevronsLeft size={32} /> : <ChevronsRight size={32} />}
         </motion.div>
         
         <div style={{ width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '5px' }}>
-           <PalmitaMascot width={50} gafasId={1} /> 
+           {/* CORRECCIÓN: crecimiento={10} para que el logo llene el espacio */}
+           <PalmitaMascot width={50} gafasId={1} crecimiento={10} /> 
         </div>
         
         <h1 className="logo">Palmita</h1>
