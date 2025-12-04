@@ -1,170 +1,82 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Lock, GraduationCap, CheckCircle } from 'lucide-react';
-
-const LOCAL_STORAGE_KEY = 'palmita_demo_users';
-
-const getLocalUsers = () => {
-  const users = localStorage.getItem(LOCAL_STORAGE_KEY);
-  return users ? JSON.parse(users) : [];
-};
+import { apiLogin, apiRegistro } from '../services/api';
 
 export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }) {
   const [esLogin, setEsLogin] = useState(true);
-  const [password, setPassword] = useState('');
+  
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
-  const [edad, setEdad] = useState('');
-  const [cedula, setCedula] = useState('');
+  const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
+  const [cedula, setCedula] = useState('');
+  const [edad, setEdad] = useState('');
   const [genero, setGenero] = useState('niño');
 
+  const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(false);
   const [registroExitoso, setRegistroExitoso] = useState(null);
 
-  const validarEmailGmail = (value) => /@gmail\.com$/i.test(value);
+  const validarEmailGmail = (val) => /@gmail\.com$/i.test(val);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setCargando(true);
 
-    // ==========================================
-    // LOGICA PARA PROFESORES (DOCENTES)
-    // ==========================================
-    if (esProfesor) {
-      // --- LOGIN DOCENTE ---
+    try {
       if (esLogin) {
-        if (!email || !password) {
-          setError('Ingresa tu correo y contraseña.');
-          return;
-        }
-        if (!validarEmailGmail(email)) {
-          setError('El correo debe ser de Gmail (ej: profe@gmail.com).');
-          return;
-        }
+        // --- LOGIN ---
+        const identificador = esProfesor ? email : nombre;
+        const usuarioEncontrado = await apiLogin(identificador, password);
+        
+        if (esProfesor && usuarioEncontrado.rol !== 'teacher') throw new Error("Esta cuenta no es de profesor");
+        if (!esProfesor && usuarioEncontrado.rol !== 'estudiante') throw new Error("Esta cuenta no es de estudiante");
 
-        // 1. Intento de acceso como ADMIN (Hardcoded)
-        if (email.toLowerCase() === 'admin@gmail.com' && password === 'admin123') {
-          alAutenticar({ nombre: 'Profesor', rol: 'admin', email });
-          return;
-        }
+        alAutenticar(usuarioEncontrado);
 
-        // 2. Intento de acceso buscando en LOCALSTORAGE (La corrección clave)
-        const users = getLocalUsers();
-        const docenteEncontrado = users.find(u => 
-            u.email?.toLowerCase() === email.toLowerCase() && 
-            u.password === password &&
-            u.rol === 'teacher' // Solo dejamos pasar si es rol teacher
-        );
-
-        if (docenteEncontrado) {
-            alAutenticar(docenteEncontrado);
-        } else {
-            setError('Credenciales inválidas o usuario no registrado.');
-        }
-        return;
-      }
-
-      // --- REGISTRO DOCENTE ---
-      if (!email || !password || !nombre || !apellido || !edad || !cedula) {
-        setError('Completa todos los campos.');
-        return;
-      }
-      if (!validarEmailGmail(email)) {
-        setError('El correo debe ser de Gmail.');
-        return;
-      }
-      if (password.length < 8) {
-        setError('La contraseña debe tener al menos 8 caracteres.');
-        return;
-      }
-      if (Number(edad) < 18 || Number(edad) > 80) {
-        setError('La edad debe estar entre 18 y 80 años.');
-        return;
-      }
-
-      const users = getLocalUsers();
-      if (users.some(u => u.email?.toLowerCase() === email.toLowerCase())) {
-        setError('Ya existe un usuario con ese correo.');
-        return;
-      }
-      if (users.some(u => u.cedula === cedula)) {
-        setError('Ya existe un usuario con esa cédula.');
-        return;
-      }
-
-      const nuevoDocente = {
-        rol: 'teacher',
-        email,
-        password, // En demo se guarda en claro
-        nombre: nombre.trim(),
-        apellido: apellido.trim(),
-        edad: Number(edad),
-        cedula: cedula.trim(),
-        creadoEn: Date.now()
-      };
-
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([...users, nuevoDocente]));
-      setRegistroExitoso(`${nombre} ${apellido}`);
-      return;
-    }
-
-    // ==========================================
-    // LOGICA PARA ESTUDIANTES (NIÑOS)
-    // ==========================================
-    const nombreCompleto = `${nombre.trim()} ${apellido.trim()}`.trim();
-    const nombreBusqueda = nombre.trim().toLowerCase();
-    const users = getLocalUsers();
-
-    if (esLogin) {
-      if (!nombre || !password) {
-        setError('Por favor, ingresa tu Nombre y Contraseña.');
-        return;
-      }
-      // Busca coincidencias parciales en el nombre
-      const userFound = users.find(u => u.nombre?.toLowerCase().includes(nombreBusqueda) && u.rol === 'estudiante');
-
-      if (userFound && userFound.password === password) {
-        alAutenticar(userFound);
-      } else if (userFound && userFound.password !== password) {
-        setError('Contraseña incorrecta.');
       } else {
-        setError(`No existe el estudiante "${nombre}". Regístrate primero.`);
-      }
-    } else {
-      // REGISTRO ESTUDIANTE
-      if (!nombre || !apellido || !edad || !password) {
-        setError('Completa todos los campos.');
-        return;
-      }
-      if (!['niño','niña'].includes(genero)) {
-        setError('Selecciona si eres niño o niña.');
-        return;
-      }
-      if (password.length < 4) {
-        setError('La contraseña es muy corta.');
-        return;
-      }
-      if (users.some(u => u.nombre?.toLowerCase() === nombreCompleto.toLowerCase())) {
-        setError(`Ya existe ${nombreCompleto}. Usa otro nombre.`);
-        return;
-      }
+        // --- REGISTRO ---
+        if (!password) throw new Error("La contraseña es obligatoria");
+        
+        if (!esProfesor) {
+            // Validaciones solo para estudiantes
+            if (password.length > 8) throw new Error("La contraseña debe tener máximo 8 caracteres");
+            if (password.length < 3) throw new Error("La contraseña es muy corta");
+            if (!edad) throw new Error("La edad es obligatoria para estudiantes");
+        }
 
-      const newUser = {
-        nombre: nombreCompleto,
-        apellido: apellido.trim(),
-        password: password,
-        edad: edad,
-        genero: genero,
-        rol: 'estudiante',
-        gemas: 0,
-        nivel: 1,
-        racha: 0,
-        progresoNiveles: []
-      };
+        if (esProfesor) {
+            // Validaciones solo para profesores
+            if (!validarEmailGmail(email)) throw new Error("El correo debe ser Gmail");
+            if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres");
+        }
 
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([...users, newUser]));
-      setRegistroExitoso(nombre);
+        const datosNuevoUsuario = {
+          nombre: nombre.trim(),
+          apellido: apellido.trim(),
+          password,
+          // CAMBIO 2: Si es profesor, la edad es null, si es estudiante, se convierte a número
+          edad: esProfesor ? null : Number(edad),
+          genero: esProfesor ? null : genero,
+          rol: esProfesor ? 'teacher' : 'estudiante',
+          email: esProfesor ? email : null,
+          cedula: esProfesor ? cedula : null
+        };
+
+        await apiRegistro(datosNuevoUsuario);
+        setRegistroExitoso(nombre);
+      }
+    } catch (err) {
+      console.error(err);
+      if (err.message === "Failed to fetch") {
+        setError("Error: No hay conexión con el servidor.");
+      } else {
+        setError(err.message || "Error desconocido");
+      }
+    } finally {
+      setCargando(false);
     }
   };
 
@@ -174,186 +86,136 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
     setPassword('');
   };
 
+  const spacingStyle = { marginBottom: '10px', position: 'relative' };
+  const iconStyle = { 
+      position: 'absolute',
+      top: '50%', 
+      transform: 'translateY(-50%)', 
+      left: '12px',
+      zIndex: 2,
+      color: '#aaa'
+  };
+
   return (
     <AnimatePresence>
-      <div className="auth-overlay">
-        <motion.div
-          className="auth-card"
-          initial={{ scale: 0.8, opacity: 0, y: 50 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.8, opacity: 0, y: 50 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
+      <div className="auth-overlay" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '10px' }}>
+        <motion.div 
+            className="auth-card" 
+            initial={{ scale: 0.8, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }} 
+            exit={{ scale: 0.8, opacity: 0 }}
+            style={{ 
+                padding: '25px', 
+                maxWidth: '380px', 
+                width: '100%',
+                maxHeight: '95vh', 
+                overflowY: 'auto'
+            }} 
         >
-          <button
-            className="btn-cerrar-modal"
-            onClick={alCerrar}
-            style={{
-              position: 'absolute',
-              top: '15px',
-              right: '15px',
-              background: 'transparent',
-              border: 'none',
-              color: 'white',
-              fontSize: '28px',
-              cursor: 'pointer',
-              lineHeight: 1
-            }}
-          >
-            ×
-          </button>
+          <button className="btn-cerrar-modal" onClick={alCerrar} style={{position: 'absolute', top: 12, right: 12, fontSize: '18px'}}>×</button>
 
           {registroExitoso ? (
-            <div style={{ textAlign: 'center', padding: '20px 10px' }}>
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}
-              >
-                <CheckCircle size={80} color="#58cc02" strokeWidth={2} />
-              </motion.div>
-
-              <h2 style={{ color: 'white', fontSize: '28px', marginBottom: '10px' }}>¡Bienvenido/a!</h2>
-              <h3 style={{ color: '#58cc02', fontSize: '24px', marginBottom: '20px', textTransform: 'capitalize' }}>
-                {registroExitoso}
-              </h3>
-              <p style={{ color: '#aaa', marginBottom: '30px' }}>
-                Tu cuenta ha sido creada correctamente. Ahora inicia sesión para continuar.
-              </p>
-
-              <button className="btn-auth-submit" onClick={irAIniciarSesion} style={{ width: '100%' }}>
-                Ir a Iniciar Sesión
-              </button>
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <CheckCircle size={80} color="#58cc02" style={{ margin: '0 auto 20px' }} />
+              <h2 style={{ color: 'white', marginBottom: '10px' }}>¡Listo!</h2>
+              <p style={{ color: '#aaa', marginBottom: '20px' }}>Cuenta creada exitosamente.</p>
+              <button className="btn-auth-submit" onClick={irAIniciarSesion} style={{ width: '100%' }}>Iniciar Sesión</button>
             </div>
           ) : (
             <>
-              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                {esProfesor ? (
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
-                    <div style={{ background: '#0066FF', padding: '15px', borderRadius: '50%' }}>
-                      <GraduationCap size={40} color="white" />
-                    </div>
-                  </div>
-                ) : null}
-                <h2 className="auth-titulo">
-                  {esProfesor ? (esLogin ? 'Acceso Docente' : 'Registro Docente') : esLogin ? 'Hola, ¿Cómo te llamas?' : 'Crea tu Usuario'}
-                </h2>
+              <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+                {esProfesor && <GraduationCap size={32} color="#0066FF" style={{ margin: '0 auto 5px' }} />}
+                <h2 className="auth-titulo" style={{ fontSize: '22px', marginBottom: '2px' }}>{esLogin ? 'Acceder' : 'Crear Cuenta'}</h2>
+                <p style={{ fontSize: '12px', color: '#888', margin: 0 }}>{esProfesor ? 'Portal Docente' : 'Zona de Estudiantes'}</p>
               </div>
 
-              {error && (
-                <p
-                  style={{
-                    color: '#ff4b4b',
-                    textAlign: 'center',
-                    marginBottom: '15px',
-                    fontWeight: 'bold',
-                    background: 'rgba(255,0,0,0.1)',
-                    padding: '10px',
-                    borderRadius: '8px'
-                  }}
-                >
-                  {error}
-                </p>
-              )}
+              {error && <p style={{ background: 'rgba(255, 75, 75, 0.2)', color: '#ff4b4b', padding: '8px', borderRadius: '8px', textAlign: 'center', fontSize: '12px', marginBottom: '15px' }}>{error}</p>}
 
-              <div className="auth-tabs">
-                {esProfesor ? (
-                  <>
-                    <button className={`auth-tab ${esLogin ? 'activo' : ''}`} onClick={() => { setEsLogin(true); setError(''); }}>Ingresar</button>
-                    <button className={`auth-tab ${!esLogin ? 'activo' : ''}`} onClick={() => { setEsLogin(false); setError(''); }}>Registrarse</button>
-                  </>
-                ) : (
-                  <>
-                    <button className={`auth-tab ${esLogin ? 'activo' : ''}`} onClick={() => { setEsLogin(true); setError(''); }}>Ingresar</button>
-                    <button className={`auth-tab ${!esLogin ? 'activo' : ''}`} onClick={() => { setEsLogin(false); setError(''); }}>Registrarse</button>
-                  </>
-                )}
+              <div className="auth-tabs" style={{ marginBottom: '15px' }}>
+                <button className={`auth-tab ${esLogin ? 'activo' : ''}`} onClick={() => setEsLogin(true)} style={{ padding: '8px' }}>Ingresar</button>
+                <button className={`auth-tab ${!esLogin ? 'activo' : ''}`} onClick={() => setEsLogin(false)} style={{ padding: '8px' }}>Registrarse</button>
               </div>
 
               <form className="auth-form" onSubmit={handleSubmit}>
-                {esProfesor ? (
+                {/* CAMPOS DE REGISTRO */}
+                {!esLogin && (
                   <>
-                    {!esLogin && (
-                      <>
-                        <div className="input-group">
-                          <User size={20} className="input-icon" />
-                          <input type="text" placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+                    <div className="input-group" style={spacingStyle}>
+                        <User size={18} style={iconStyle} />
+                        <input type="text" placeholder="Nombre" value={nombre} onChange={e => setNombre(e.target.value)} required style={{ padding: '10px 10px 10px 40px', fontSize: '14px' }} />
+                    </div>
+                    
+                    <div className="input-group" style={spacingStyle}>
+                        <User size={18} style={iconStyle}/>
+                        <input type="text" placeholder="Apellido" value={apellido} onChange={e => setApellido(e.target.value)} required style={{ padding: '10px 10px 10px 40px', fontSize: '14px' }}/>
+                    </div>
+
+                    {esProfesor ? (
+                        <div className="input-group" style={spacingStyle}>
+                            {/* Icono de Cédula/ID */}
+                            <User size={18} style={iconStyle}/>
+                            <input type="text" placeholder="Cédula" value={cedula} onChange={e => setCedula(e.target.value)} required style={{ padding: '10px 10px 10px 40px', fontSize: '14px' }}/>
                         </div>
-                        <div className="input-group">
-                          <User size={20} className="input-icon" />
-                          <input type="text" placeholder="Apellido" value={apellido} onChange={(e) => setApellido(e.target.value)} required />
-                        </div>
-                        <div className="input-group">
-                          <User size={20} className="input-icon" />
-                          <input type="text" placeholder="Cédula" value={cedula} onChange={(e) => setCedula(e.target.value)} required />
-                        </div>
-                        <div className="input-group">
-                          <Lock size={20} className="input-icon" />
-                          <input type="number" placeholder="Edad" value={edad} onChange={(e) => setEdad(e.target.value)} required min="18" max="80" />
-                        </div>
-                      </>
+                    ) : (
+                        // Bloque solo para estudiantes: Género y Edad
+                        <>
+                            <div className="auth-tabs" style={{ marginTop: '5px', marginBottom: '10px', gap: '5px' }}>
+                                <button type="button" className={`auth-tab tab-azul ${genero === 'niño' ? 'activo' : ''}`} onClick={() => setGenero('niño')} style={{ padding: '8px', fontSize: '12px' }}>Niño</button>
+                                <button type="button" className={`auth-tab tab-rosa ${genero === 'niña' ? 'activo' : ''}`} onClick={() => setGenero('niña')} style={{ padding: '8px', fontSize: '12px' }}>Niña</button>
+                            </div>
+                            
+                            {/* CAMBIO 1: El campo EDAD solo se muestra si NO es profesor */}
+                            <div className="input-group" style={spacingStyle}>
+                                <User size={18} style={iconStyle}/>
+                                <input type="number" placeholder="Edad" value={edad} onChange={e => setEdad(e.target.value)} required min={5} style={{ padding: '10px 10px 10px 40px', fontSize: '14px' }}/>
+                            </div>
+                        </>
                     )}
-
-                    <div className="input-group">
-                      <User size={20} className="input-icon" />
-                      {/* IMPORTANTE: type="email" ayuda al navegador a validar */}
-                      <input type="email" placeholder="Correo Gmail" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                    </div>
-
-                    <div className="input-group">
-                      <Lock size={20} className="input-icon" />
-                      <input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                    </div>
-
-                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit" className="btn-auth-submit" style={{ background: 'linear-gradient(to bottom, #0066FF, #0044AA)', boxShadow: '0 4px 0 #003388' }}>
-                      {esLogin ? 'Entrar al Panel' : 'Crear Cuenta Docente'}
-                    </motion.button>
-                  </>
-                ) : (
-                  <>
-                    <div className="input-group">
-                      <User size={20} className="input-icon" />
-                      <input type="text" placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
-                    </div>
-
-                    {!esLogin && (
-                      <>
-                        <div className="auth-tabs" style={{ marginTop: 4 }}>
-                          <button
-                            type="button"
-                            className={`auth-tab tab-azul ${genero === 'niño' ? 'activo' : ''}`}
-                            onClick={() => setGenero('niño')}
-                          >
-                            Niño
-                          </button>
-                          <button
-                            type="button"
-                            className={`auth-tab tab-rosa ${genero === 'niña' ? 'activo' : ''}`}
-                            onClick={() => setGenero('niña')}
-                          >
-                            Niña
-                          </button>
-                        </div>
-                        <div className="input-group">
-                          <User size={20} className="input-icon" />
-                          <input type="text" placeholder="Apellido" value={apellido} onChange={(e) => setApellido(e.target.value)} required />
-                        </div>
-                        <div className="input-group">
-                          <Lock size={20} className="input-icon" />
-                          <input type="number" placeholder="Edad" value={edad} onChange={(e) => setEdad(e.target.value)} required min="6" max="18" />
-                        </div>
-                      </>
-                    )}
-
-                    <div className="input-group">
-                      <Lock size={20} className="input-icon" />
-                      <input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                    </div>
-
-                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit" className="btn-auth-submit">
-                      {esLogin ? 'Ingresar' : 'Crear Cuenta'}
-                    </motion.button>
                   </>
                 )}
+
+                {/* CAMPO DE USUARIO (Email para profe, Nombre para login niño) */}
+                {(esProfesor || esLogin) && (
+                    <div className="input-group" style={spacingStyle}>
+                        <User size={18} style={iconStyle}/>
+                        {esProfesor ? (
+                            <input type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)} required style={{ padding: '10px 10px 10px 40px', fontSize: '14px' }}/>
+                        ) : (
+                            <input type="text" placeholder="Tu Nombre de Usuario" value={nombre} onChange={e => setNombre(e.target.value)} required style={{ padding: '10px 10px 10px 40px', fontSize: '14px' }}/>
+                        )}
+                    </div>
+                )}
+
+                <div className="input-group" style={spacingStyle}>
+                    <Lock size={18} style={iconStyle}/>
+                    <input 
+                        type="password" 
+                        placeholder={esProfesor ? "Contraseña" : "Contraseña (máx 8)"} 
+                        value={password} 
+                        onChange={e => setPassword(e.target.value)} 
+                        required 
+                        maxLength={esProfesor ? 50 : 8}
+                        style={{ padding: '10px 10px 10px 40px', fontSize: '14px' }}
+                    />
+                </div>
+
+                {/* CAMBIO 3: Botón azul si es profesor */}
+                <motion.button 
+                    whileTap={{ scale: 0.95 }} 
+                    type="submit" 
+                    className="btn-auth-submit" 
+                    disabled={cargando} 
+                    style={{ 
+                        opacity: cargando ? 0.7 : 1, 
+                        marginTop: '5px', 
+                        padding: '12px',
+                        // Si es profesor, forzamos el color azul. Si no, usa el estilo por defecto (verde/naranja)
+                        backgroundColor: esProfesor ? '#0066FF' : undefined,
+                        color: 'white' // Aseguramos texto blanco
+                    }}
+                >
+                    {cargando ? 'Conectando...' : (esLogin ? 'Entrar' : 'Registrarse')}
+                </motion.button>
               </form>
             </>
           )}

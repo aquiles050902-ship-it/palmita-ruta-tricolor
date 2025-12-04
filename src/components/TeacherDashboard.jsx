@@ -2,43 +2,48 @@ import { LogOut, Users, TrendingUp, RefreshCw, Search, Trash2, AlertTriangle } f
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion"; 
 import PalmitaMascot from "./PalmitaMascot"; 
+import { apiObtenerEstudiantes, apiEliminarEstudiante } from "../services/api"; // Importación CLAVE
 
 export default function TeacherDashboard({ alSalir }) {
   const [alumnos, setAlumnos] = useState([]);
   const [alumnoAEliminar, setAlumnoAEliminar] = useState(null);
+  const [cargando, setCargando] = useState(false);
 
-  const cargarDatos = () => {
-    const data = localStorage.getItem('palmita_demo_users');
-    if (data) {
-        const todosLosUsuarios = JSON.parse(data);
-        const soloEstudiantes = todosLosUsuarios.filter(u => u.rol === 'estudiante');
-
-        const listaFormateada = soloEstudiantes.map((u, index) => ({
-            id: index,
+  const cargarDatos = async () => {
+    setCargando(true);
+    try {
+        // 1. Pedimos datos a la base de datos real
+        const datosReales = await apiObtenerEstudiantes();
+        
+        const listaFormateada = datosReales.map(u => ({
+            id: u.id,
             nombre: u.nombre,
-            nivel: u.progresoNiveles ? Math.max(0, ...u.progresoNiveles) : 0,
+            apellido: u.apellido,
+            nivel: u.nivelMax || 0,
             racha: u.racha || 0,
             gemas: u.gemas || 0,
             estado: (u.progresoNiveles && u.progresoNiveles.length > 0) ? 'activo' : 'nuevo'
         }));
         
         setAlumnos(listaFormateada);
+    } catch (error) {
+        console.error("Error cargando estudiantes:", error);
+    } finally {
+        setCargando(false);
     }
   };
 
-  const pedirConfirmacion = (nombre) => {
-    setAlumnoAEliminar(nombre);
+  const pedirConfirmacion = (alumno) => {
+    setAlumnoAEliminar(alumno);
   };
 
-  const confirmarEliminacion = () => {
+  const confirmarEliminacion = async () => {
     if (!alumnoAEliminar) return;
-
-    const data = localStorage.getItem('palmita_demo_users');
-    if (data) {
-        let usuarios = JSON.parse(data);
-        const usuariosActualizados = usuarios.filter(u => u.nombre !== alumnoAEliminar);
-        localStorage.setItem('palmita_demo_users', JSON.stringify(usuariosActualizados));
-        cargarDatos(); 
+    try {
+        await apiEliminarEstudiante(alumnoAEliminar.id);
+        await cargarDatos();
+    } catch (error) {
+        console.error("No se pudo eliminar:", error);
     }
     setAlumnoAEliminar(null);
   };
@@ -54,7 +59,6 @@ export default function TeacherDashboard({ alSalir }) {
       <header className="header-profe">
         <div className="perfil-escuela">
           <div className="logo-profe-container">
-             {/* CORRECCIÓN: crecimiento={10} */}
              <PalmitaMascot width={60} gafasId={2} crecimiento={10} /> 
           </div>
           <div>
@@ -64,8 +68,8 @@ export default function TeacherDashboard({ alSalir }) {
         </div>
 
         <div className="acciones-header">
-            <button className="btn-refresh" onClick={cargarDatos}>
-                <RefreshCw size={18}/> Actualizar
+            <button className="btn-refresh" onClick={cargarDatos} disabled={cargando}>
+                <RefreshCw size={18} className={cargando ? "spin" : ""}/> {cargando ? "Cargando..." : "Actualizar"}
             </button>
             <button className="btn-salir-profe" onClick={alSalir}>
                 <LogOut size={18}/> Salir
@@ -100,6 +104,7 @@ export default function TeacherDashboard({ alSalir }) {
             <table className="tabla-moderna">
             <thead>
                 <tr>
+                <th style={{textAlign: 'center', width: '50px'}}>#</th>
                 <th>Estudiante</th>
                 <th>Nivel Actual</th>
                 <th>Racha</th>
@@ -110,15 +115,18 @@ export default function TeacherDashboard({ alSalir }) {
             </thead>
             <tbody>
                 {alumnos.length === 0 ? (
-                    <tr><td colSpan="6" className="tabla-vacia">No hay alumnos registrados aún.</td></tr>
+                    <tr><td colSpan="7" className="tabla-vacia">
+                        {cargando ? "Cargando..." : "No hay alumnos registrados en la base de datos."}
+                    </td></tr>
                 ) : (
-                    alumnos.map(a => (
+                    alumnos.map((a, index) => (
                     <tr key={a.id}>
+                        {/* AQUI ESTÁ LA CORRECCIÓN NUMÉRICA (index + 1) */}
+                        <td style={{textAlign: 'center', fontWeight: 'bold', color: '#888'}}>{index + 1}</td>
                         <td className="celda-nombre">
                             <div className="avatar-mini">{a.nombre.charAt(0).toUpperCase()}</div>
                             <div>
-                                <strong>{a.nombre}</strong>
-                                <br/><small>ID: {1000 + a.id}</small>
+                                <strong>{a.nombre} {a.apellido}</strong>
                             </div>
                         </td>
                         <td><div className="badge-nivel">Nivel {a.nivel}</div></td>
@@ -132,7 +140,7 @@ export default function TeacherDashboard({ alSalir }) {
                         <td style={{textAlign: 'center'}}>
                             <button 
                                 className="btn-eliminar" 
-                                onClick={() => pedirConfirmacion(a.nombre)} 
+                                onClick={() => pedirConfirmacion(a)} 
                                 title="Eliminar Estudiante"
                             >
                                 <Trash2 size={18} />
@@ -167,7 +175,7 @@ export default function TeacherDashboard({ alSalir }) {
               
               <h3 style={{ color: 'white', marginBottom: '10px', fontSize: '22px' }}>¿Estás seguro?</h3>
               <p style={{ color: '#ccc', marginBottom: '30px' }}>
-                Vas a eliminar a <strong>{alumnoAEliminar}</strong>. Esta acción no se puede deshacer.
+                Vas a eliminar a <strong>{alumnoAEliminar.nombre}</strong> de la base de datos permanentemente.
               </p>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>

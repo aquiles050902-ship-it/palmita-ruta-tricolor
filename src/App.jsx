@@ -2,9 +2,8 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import './App.css';
 import AudioSettings from './components/AudioSettings';
-
-// Audio
 import audio from './utils/audio';
+import { apiGuardar } from './services/api'; // Importamos la función de guardado
 
 // Componentes
 import HeaderBar from './components/HeaderBar';
@@ -19,18 +18,14 @@ import PalmitaMascot from './components/PalmitaMascot';
 import MatrixParticles from './components/MatrixParticles'; 
 
 function App() {
-  // Estados de Interfaz
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [menuAmpliado, setMenuAmpliado] = useState(true);
   const [vistaActual, setVistaActual] = useState('bienvenida'); 
   const [mostrarLogin, setMostrarLogin] = useState(false); 
   const [mostrarLoginProfe, setMostrarLoginProfe] = useState(false);
-
-  // Estados de Datos
   const [usuario, setUsuario] = useState(null); 
   const [nivelSeleccionado, setNivelSeleccionado] = useState(null);
 
-  // Niveles
   const [niveles, setNiveles] = useState([
     { id: 1, nombre: 'La Receta', estado: 'actual' },
     { id: 2, nombre: 'El Laberinto', estado: 'bloqueado' },
@@ -46,9 +41,7 @@ function App() {
 
   useEffect(() => {
     try {
-      if (!localStorage.getItem('rt_hasVisited')) {
-        localStorage.setItem('rt_hasVisited', '1');
-      }
+      if (!localStorage.getItem('rt_hasVisited')) localStorage.setItem('rt_hasVisited', '1');
     } catch (_) { }
     audio.initOnUserGesture();
   }, []);
@@ -68,10 +61,11 @@ function App() {
 
   const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
 
-  // --- LOGINS ---
+  // --- LOGIN EXITOSO (Cargar datos del Backend) ---
   const handleLoginExitoso = (datosUsuario) => {
     const usuarioConInventario = {
         ...datosUsuario,
+        // Aseguramos que existan arrays (por si es usuario nuevo)
         inventarioGafas: datosUsuario.inventarioGafas || [0, 1], 
         inventarioSombreros: datosUsuario.inventarioSombreros || [0], 
         nivelCrecimiento: datosUsuario.nivelCrecimiento || 0 
@@ -79,6 +73,7 @@ function App() {
 
     setUsuario(usuarioConInventario); 
     
+    // Restaurar mapa de niveles según progreso
     if (datosUsuario.progresoNiveles) {
         const nuevosNiveles = niveles.map(n => {
             if (datosUsuario.progresoNiveles.includes(n.id)) return { ...n, estado: 'completado' };
@@ -99,14 +94,21 @@ function App() {
     setVistaActual('dashboard_profe');
   };
 
-  // --- FUNCIÓN GENÉRICA PARA ACTUALIZAR USUARIO ---
+  // --- GUARDADO AUTOMÁTICO EN LA NUBE ---
   const actualizarUsuarioGlobal = (nuevoUsuario) => {
     setUsuario(nuevoUsuario);
-    const todosLosUsuarios = JSON.parse(localStorage.getItem('palmita_demo_users') || '[]');
-    const indice = todosLosUsuarios.findIndex(u => u.nombre === nuevoUsuario.nombre);
-    if (indice !== -1) {
-        todosLosUsuarios[indice] = nuevoUsuario;
-        localStorage.setItem('palmita_demo_users', JSON.stringify(todosLosUsuarios));
+    
+    // Si tiene ID, guardamos en MySQL
+    if (nuevoUsuario.id) {
+        apiGuardar(nuevoUsuario).catch(err => console.error("Error guardando:", err));
+    } else {
+        // Respaldo local si no hay conexión o es invitado
+        const todos = JSON.parse(localStorage.getItem('palmita_demo_users') || '[]');
+        const idx = todos.findIndex(u => u.nombre === nuevoUsuario.nombre);
+        if (idx !== -1) {
+            todos[idx] = nuevoUsuario;
+            localStorage.setItem('palmita_demo_users', JSON.stringify(todos));
+        }
     }
   };
 
@@ -163,7 +165,6 @@ function App() {
             <MatrixParticles />
             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="tarjeta-central" style={{ zIndex: 10 }}>
               <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center', width: '100%' }}>
-                {/* CORRECCIÓN: crecimiento={10} para que se vea GRANDE siempre en el inicio */}
                 <PalmitaMascot width={220} gafasId={1} crecimiento={10} />
               </div>
               <h2 className="bienvenida">¡Bienvenido!</h2>
