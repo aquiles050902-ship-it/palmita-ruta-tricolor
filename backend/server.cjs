@@ -12,7 +12,7 @@ const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
     password: '',
-    database: 'palmita_db' // ¡Asegúrate de haber creado esta base de datos en phpMyAdmin!
+    database: 'palmita_db'
 });
 
 db.connect(err => {
@@ -23,21 +23,27 @@ db.connect(err => {
     console.log('✅ Conectado a MySQL (XAMPP)');
 });
 
-// --- RUTA 1: REGISTRO DE USUARIOS ---
+// --- RUTA 1: REGISTRO ---
 app.post('/api/registro', (req, res) => {
     const { nombre, apellido, password, edad, genero, rol, email, cedula } = req.body;
     
-    // Valores por defecto para el juego
+    // CORRECCIÓN: Usamos arrays reales [], no strings '[]'
     const gemas = 0, racha = 0, nivelCrecimiento = 0;
-    const progresoNiveles = '[]';      // Array vacío como texto
-    const inventarioGafas = '[0,1]';   // Gafas básicas
-    const inventarioSombreros = '[0]'; // Sin sombrero
+    const progresoNiveles = []; 
+    const inventarioGafas = [0, 1];
+    const inventarioSombreros = [0];
 
     const sql = `INSERT INTO usuarios 
     (nombre, apellido, password, edad, genero, rol, email, cedula, gemas, racha, nivelCrecimiento, progresoNiveles, inventarioGafas, inventarioSombreros) 
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    const valores = [nombre, apellido, password, edad, genero, rol, email, cedula, gemas, racha, nivelCrecimiento, progresoNiveles, inventarioGafas, inventarioSombreros];
+    const valores = [
+        nombre, apellido, password, edad, genero, rol, email, cedula, 
+        gemas, racha, nivelCrecimiento, 
+        JSON.stringify(progresoNiveles),      // Ahora sí se guarda correctamente
+        JSON.stringify(inventarioGafas), 
+        JSON.stringify(inventarioSombreros)
+    ];
 
     db.query(sql, valores, (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -45,25 +51,28 @@ app.post('/api/registro', (req, res) => {
     });
 });
 
-// --- RUTA 2: INICIO DE SESIÓN ---
+// --- RUTA 2: LOGIN ---
 app.post('/api/login', (req, res) => {
-    const { identificador, password } = req.body; // 'identificador' puede ser nombre o email
-    
-    // Buscamos usuario por Nombre O por Email
+    const { identificador, password } = req.body;
     const sql = 'SELECT * FROM usuarios WHERE (nombre = ? OR email = ?) AND password = ?';
     
     db.query(sql, [identificador, identificador, password], (err, results) => {
         if (err) return res.status(500).json(err);
-        
         if (results.length > 0) {
             const user = results[0];
-            // Convertimos el texto JSON de la BD a Arrays reales de JS para que React los entienda
-            user.progresoNiveles = JSON.parse(user.progresoNiveles || '[]');
-            user.inventarioGafas = JSON.parse(user.inventarioGafas || '[0,1]');
-            user.inventarioSombreros = JSON.parse(user.inventarioSombreros || '[0]');
+            try {
+                user.progresoNiveles = JSON.parse(user.progresoNiveles || '[]');
+                user.inventarioGafas = JSON.parse(user.inventarioGafas || '[0,1]');
+                user.inventarioSombreros = JSON.parse(user.inventarioSombreros || '[0]');
+            } catch (e) {
+                // Si falla el parseo, ponemos valores por defecto
+                user.progresoNiveles = [];
+                user.inventarioGafas = [0,1];
+                user.inventarioSombreros = [0];
+            }
             res.json(user);
         } else {
-            res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
+            res.status(401).json({ message: 'Credenciales incorrectas' });
         }
     });
 });
@@ -72,7 +81,6 @@ app.post('/api/login', (req, res) => {
 app.post('/api/guardar', (req, res) => {
     const { id, gemas, racha, nivelCrecimiento, gafasId, sombreroId, progresoNiveles, inventarioGafas, inventarioSombreros } = req.body;
 
-    // Convertimos los arrays de React a texto JSON para guardar en MySQL
     const sql = `UPDATE usuarios SET 
         gemas = ?, racha = ?, nivelCrecimiento = ?, gafasId = ?, sombreroId = ?, 
         progresoNiveles = ?, inventarioGafas = ?, inventarioSombreros = ? 
@@ -88,11 +96,47 @@ app.post('/api/guardar', (req, res) => {
 
     db.query(sql, valores, (err, result) => {
         if (err) return res.status(500).json(err);
-        res.json({ message: 'Progreso guardado' });
+        res.json({ message: 'Guardado' });
     });
 });
 
-// Arrancar servidor
+// --- RUTA 4: OBTENER ESTUDIANTES ---
+app.get('/api/estudiantes', (req, res) => {
+    const sql = "SELECT * FROM usuarios WHERE rol = 'estudiante'";
+    
+    db.query(sql, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const estudiantes = results.map(user => {
+            let niveles = [];
+            try {
+                niveles = JSON.parse(user.progresoNiveles || '[]');
+                // Validación extra: si por error es un string, lo intentamos parsear de nuevo o lo dejamos vacío
+                if (typeof niveles === 'string') niveles = []; 
+            } catch (e) { niveles = []; }
+
+            return {
+                ...user,
+                progresoNiveles: niveles,
+                nivelMax: Array.isArray(niveles) && niveles.length > 0 ? Math.max(...niveles) : 0
+            };
+        });
+        
+        res.json(estudiantes);
+    });
+});
+
+// --- RUTA 5: ELIMINAR ESTUDIANTE ---
+app.delete('/api/estudiantes/:id', (req, res) => {
+    const { id } = req.params;
+    const sql = "DELETE FROM usuarios WHERE id = ?";
+    
+    db.query(sql, [id], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Estudiante eliminado" });
+    });
+});
+
 app.listen(3000, () => {
     console.log('🚀 Servidor Backend corriendo en http://localhost:3000');
 });
