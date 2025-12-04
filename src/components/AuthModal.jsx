@@ -28,27 +28,44 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
     e.preventDefault();
     setError('');
 
-    // Flujo docente (local, sin backend):
+    // ==========================================
+    // LOGICA PARA PROFESORES (DOCENTES)
+    // ==========================================
     if (esProfesor) {
+      // --- LOGIN DOCENTE ---
       if (esLogin) {
         if (!email || !password) {
           setError('Ingresa tu correo y contraseña.');
           return;
         }
         if (!validarEmailGmail(email)) {
-          setError('El correo debe ser de Gmail.');
+          setError('El correo debe ser de Gmail (ej: profe@gmail.com).');
           return;
         }
-        // Demo: credenciales fijas admin
+
+        // 1. Intento de acceso como ADMIN (Hardcoded)
         if (email.toLowerCase() === 'admin@gmail.com' && password === 'admin123') {
           alAutenticar({ nombre: 'Profesor', rol: 'admin', email });
+          return;
+        }
+
+        // 2. Intento de acceso buscando en LOCALSTORAGE (La corrección clave)
+        const users = getLocalUsers();
+        const docenteEncontrado = users.find(u => 
+            u.email?.toLowerCase() === email.toLowerCase() && 
+            u.password === password &&
+            u.rol === 'teacher' // Solo dejamos pasar si es rol teacher
+        );
+
+        if (docenteEncontrado) {
+            alAutenticar(docenteEncontrado);
         } else {
-          setError('Credenciales inválidas.');
+            setError('Credenciales inválidas o usuario no registrado.');
         }
         return;
       }
 
-      // Registro docente (localStorage de demo)
+      // --- REGISTRO DOCENTE ---
       if (!email || !password || !nombre || !apellido || !edad || !cedula) {
         setError('Completa todos los campos.');
         return;
@@ -79,7 +96,7 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
       const nuevoDocente = {
         rol: 'teacher',
         email,
-        password, // En demo se guarda en claro; en backend real usar hash
+        password, // En demo se guarda en claro
         nombre: nombre.trim(),
         apellido: apellido.trim(),
         edad: Number(edad),
@@ -92,7 +109,9 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
       return;
     }
 
-    // Lógica de estudiante existente
+    // ==========================================
+    // LOGICA PARA ESTUDIANTES (NIÑOS)
+    // ==========================================
     const nombreCompleto = `${nombre.trim()} ${apellido.trim()}`.trim();
     const nombreBusqueda = nombre.trim().toLowerCase();
     const users = getLocalUsers();
@@ -102,7 +121,8 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
         setError('Por favor, ingresa tu Nombre y Contraseña.');
         return;
       }
-      const userFound = users.find(u => u.nombre?.toLowerCase().includes(nombreBusqueda));
+      // Busca coincidencias parciales en el nombre
+      const userFound = users.find(u => u.nombre?.toLowerCase().includes(nombreBusqueda) && u.rol === 'estudiante');
 
       if (userFound && userFound.password === password) {
         alAutenticar(userFound);
@@ -112,6 +132,7 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
         setError(`No existe el estudiante "${nombre}". Regístrate primero.`);
       }
     } else {
+      // REGISTRO ESTUDIANTE
       if (!nombre || !apellido || !edad || !password) {
         setError('Completa todos los campos.');
         return;
@@ -274,6 +295,7 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
 
                     <div className="input-group">
                       <User size={20} className="input-icon" />
+                      {/* IMPORTANTE: type="email" ayuda al navegador a validar */}
                       <input type="email" placeholder="Correo Gmail" value={email} onChange={(e) => setEmail(e.target.value)} required />
                     </div>
 

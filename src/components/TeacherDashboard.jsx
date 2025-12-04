@@ -1,50 +1,54 @@
 import { LogOut, Users, TrendingUp, RefreshCw, Search, Trash2, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion"; // Importamos para animar el modal
+import { motion, AnimatePresence } from "framer-motion"; 
 import PalmitaMascot from "./PalmitaMascot"; 
 
 export default function TeacherDashboard({ alSalir }) {
   const [alumnos, setAlumnos] = useState([]);
-  
-  // ESTADO NUEVO: Guarda el nombre del alumno que queremos borrar. Si es null, el modal está cerrado.
   const [alumnoAEliminar, setAlumnoAEliminar] = useState(null);
 
   const cargarDatos = () => {
     const data = localStorage.getItem('palmita_demo_users');
     if (data) {
-        const usuarios = JSON.parse(data);
-        const listaFormateada = usuarios.map((u, index) => ({
+        const todosLosUsuarios = JSON.parse(data);
+        
+        // --- CORRECCIÓN AQUÍ ---
+        // Filtramos para que SOLO pasen los estudiantes. 
+        // Si el usuario es 'teacher' o 'admin', lo ignoramos.
+        const soloEstudiantes = todosLosUsuarios.filter(u => u.rol === 'estudiante');
+
+        const listaFormateada = soloEstudiantes.map((u, index) => ({
             id: index,
             nombre: u.nombre,
+            // Si es estudiante nuevo sin progreso, asumimos nivel 0
             nivel: u.progresoNiveles ? Math.max(0, ...u.progresoNiveles) : 0,
             racha: u.racha || 0,
             gemas: u.gemas || 0,
             estado: (u.progresoNiveles && u.progresoNiveles.length > 0) ? 'activo' : 'nuevo'
         }));
+        
         setAlumnos(listaFormateada);
     }
   };
 
-  // 1. Al hacer clic en la papelera, SOLO abrimos el modal (no borramos todavía)
   const pedirConfirmacion = (nombre) => {
     setAlumnoAEliminar(nombre);
   };
 
-  // 2. Si el usuario dice "SÍ" en el modal, ejecutamos el borrado
   const confirmarEliminacion = () => {
     if (!alumnoAEliminar) return;
 
     const data = localStorage.getItem('palmita_demo_users');
     if (data) {
         let usuarios = JSON.parse(data);
+        // Borramos al usuario de la base de datos general por su nombre
         const usuariosActualizados = usuarios.filter(u => u.nombre !== alumnoAEliminar);
         localStorage.setItem('palmita_demo_users', JSON.stringify(usuariosActualizados));
-        cargarDatos();
+        cargarDatos(); // Recargamos la tabla (que aplicará el filtro de nuevo)
     }
-    setAlumnoAEliminar(null); // Cerramos el modal
+    setAlumnoAEliminar(null);
   };
 
-  // 3. Si dice "CANCELAR", solo cerramos el modal
   const cancelarEliminacion = () => {
     setAlumnoAEliminar(null);
   };
@@ -84,6 +88,7 @@ export default function TeacherDashboard({ alSalir }) {
         <div className="stat-card verde">
           <div className="icono-stat"><TrendingUp size={28}/></div>
           <div>
+            {/* Cálculo de promedio seguro (evita división por cero) */}
             <h3>{alumnos.length > 0 ? (alumnos.reduce((acc, v) => acc + v.nivel, 0) / alumnos.length).toFixed(1) : 0}</h3>
             <p>Nivel Promedio</p>
           </div>
@@ -136,7 +141,7 @@ export default function TeacherDashboard({ alSalir }) {
                         <td style={{textAlign: 'center'}}>
                             <button 
                                 className="btn-eliminar" 
-                                onClick={() => pedirConfirmacion(a.nombre)} // Abre el modal
+                                onClick={() => pedirConfirmacion(a.nombre)} 
                                 title="Eliminar Estudiante"
                             >
                                 <Trash2 size={18} />
@@ -150,7 +155,7 @@ export default function TeacherDashboard({ alSalir }) {
         </div>
       </div>
 
-      {/* === MODAL DE CONFIRMACIÓN PERSONALIZADO === */}
+      {/* MODAL DE CONFIRMACIÓN */}
       <AnimatePresence>
         {alumnoAEliminar && (
           <div className="auth-overlay" style={{zIndex: 3000}}>
@@ -172,7 +177,7 @@ export default function TeacherDashboard({ alSalir }) {
               
               <h3 style={{ color: 'white', marginBottom: '10px', fontSize: '22px' }}>¿Estás seguro?</h3>
               <p style={{ color: '#ccc', marginBottom: '30px' }}>
-                Vas a eliminar a <strong>{alumnoAEliminar}</strong>. Esta acción no se puede deshacer y perderá todo su progreso.
+                Vas a eliminar a <strong>{alumnoAEliminar}</strong>. Esta acción no se puede deshacer.
               </p>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>

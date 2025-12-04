@@ -529,4 +529,33 @@ body {
 .btn-toggle-tema-float:hover {
   filter: brightness(1.05);
 }
-*/
+/* Botón Flotante para cambiar Tema (Solo en Inicio y Panel Profe) */
+.btn-toggle-tema-float {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 3000;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 2px solid var(--border);
+  border-radius: 30px;
+  padding: 12px 20px;
+  font-family: inherit;
+  font-weight: 800;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-toggle-tema-float:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+
+.btn-toggle-tema-float:active {
+  transform: scale(0.95);
+}

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import './App.css';
+import AudioSettings from './components/AudioSettings';
 
 // Audio
 import audio from './utils/audio';
@@ -222,7 +223,7 @@ function App() {
         {vistaActual === 'mascota' && <PalmitaCare />}
         {vistaActual === 'perfil' && <UserProfile usuario={usuario} />}
         {vistaActual === 'dashboard_profe' && <TeacherDashboard alSalir={() => setVistaActual('bienvenida')} />}
-        
+        {vistaActual === 'audio' && <AudioSettings />}
         {mostrarLogin && <AuthModal alCerrar={() => setMostrarLogin(false)} alAutenticar={handleLoginExitoso} />}
         {mostrarLoginProfe && <AuthModal alCerrar={() => setMostrarLoginProfe(false)} alAutenticar={handleLoginProfe} esProfesor={true} />}
 

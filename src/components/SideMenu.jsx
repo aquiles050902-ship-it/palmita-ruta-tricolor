@@ -1,14 +1,16 @@
-import { Map, Award, Smile, User, LogOut } from "lucide-react"; 
+import { Map, Award, Smile, User, LogOut, Volume2 } from "lucide-react"; 
 import audio from '../utils/audio';
-import AudioControls from './AudioControls';
 
+// NOTA: Ya no importamos AudioControls porque ahora es una página normal
 export default function SideMenu({ menuAbierto, setMenuAbierto, setVistaActual, vistaActual, menuAmpliado }) {
   
   const menuItems = [
     { name: "Mi Aventura", icon: Map, id: "mapa" },       
     { name: "Mis Trofeos", icon: Award, id: "logros" },   
     { name: "Mi Palmita", icon: Smile, id: "mascota" },   
-    { name: "Mi Perfil", icon: User, id: "perfil" },      
+    { name: "Mi Perfil", icon: User, id: "perfil" },
+    // Ahora Audio es una opción más de la lista:
+    { name: "Audio", icon: Volume2, id: "audio" },      
   ];
 
   const navegar = (idPagina) => {
@@ -20,13 +22,10 @@ export default function SideMenu({ menuAbierto, setMenuAbierto, setVistaActual, 
   return (
     <nav className={`menu-lateral ${menuAbierto ? 'abierto' : ''} ${!menuAmpliado ? 'contraido' : ''}`}>
       <ul>
-        {/* CORRECCIÓN AQUÍ: Quitamos el punto y dejamos la palabra MENÚ siempre */}
         <li className="titulo-menu" style={{ 
             opacity: 0.6, 
             paddingBottom: '10px', 
-            // Si está ampliado a la izquierda, si está cerrado centrado
             textAlign: menuAmpliado ? 'left' : 'center',
-            // Ajustamos el tamaño para que se vea bien en ambos modos
             fontSize: '12px',
             fontWeight: 'bold',
             letterSpacing: '1px'
@@ -47,12 +46,8 @@ export default function SideMenu({ menuAbierto, setMenuAbierto, setVistaActual, 
           </li>
         ))}
 
-        {/* Controles de Audio integrados en el menú */}
-        <li style={{ marginTop: 'auto' }}>
-          <AudioControls inline={true} />
-        </li>
-
-        <li style={{ color: '#ff4b4b' }} onClick={() => window.location.reload()}>
+        {/* El botón de Salir lo dejamos abajo separado */}
+        <li style={{ marginTop: 'auto', color: '#ff4b4b' }} onClick={() => window.location.reload()}>
             <LogOut size={28} />
             {menuAmpliado && <span className="texto-menu">Salir</span>}
         </li>
