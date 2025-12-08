@@ -4,7 +4,7 @@ import { User, Lock, GraduationCap, CheckCircle, Crown, Key } from 'lucide-react
 import { apiLogin, apiRegistro } from '../services/api';
 
 export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }) {
-  // Estados: 'login' (Estudiante/Profe), 'registro' (Estudiante/Profe), 'master' (Solo Director)
+  // Estados: 'login', 'registro', 'master'
   const [modo, setModo] = useState('login'); 
   
   // Campos del formulario
@@ -16,7 +16,7 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
   const [edad, setEdad] = useState('');
   const [genero, setGenero] = useState('niño');
   
-  // Estado para el código de registro (solo si se quisiera registrar un nuevo director, opcional)
+  // Estado opcional por si se requiere en el futuro
   const [codigoMaster, setCodigoMaster] = useState('');
 
   const [error, setError] = useState('');
@@ -31,13 +31,13 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
 
     try {
       // --- CASO 1: LOGIN (Estudiantes, Profesores y DIRECTORES) ---
-      // Ahora el modo 'master' también usa la lógica de login, no de registro.
+      // Ahora el modo 'master' también usa la lógica de login
       if (modo === 'login' || modo === 'master') {
         
-        // Identificador: Para Master/Profe puede ser email o nombre.
+        // Identificador: Para Master/Profe puede ser email o nombre (el input de usuario usa 'nombre')
         const identificador = (esProfesor || modo === 'master') ? (nombre || email) : nombre;
         
-        // Nota: Para el Director, usamos el campo 'nombre' como 'Usuario' y 'password' como 'Clave Única'
+        // LOGIN: Usamos apiLogin para verificar credenciales
         const usuarioEncontrado = await apiLogin(identificador, password);
         
         // Validaciones de Rol
@@ -52,7 +52,7 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
         alAutenticar(usuarioEncontrado);
 
       } else {
-        // --- CASO 2: REGISTRO (Solo visible para Estudiantes/Profesores en pestaña 'Registrarse') ---
+        // --- CASO 2: REGISTRO (Solo para Estudiantes/Profesores) ---
         const datosNuevoUsuario = {
           nombre: nombre.trim(),
           apellido: apellido.trim(),
@@ -105,7 +105,7 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
             className="auth-card" 
             initial={{ scale: 0.9, opacity: 0 }} 
             animate={{ scale: 1, opacity: 1 }}
-            style={{ background: '#111', border: '1px solid #333', boxShadow: `0 0 30px ${getButtonColor()}40` }}
+            style={{ background: '#111', border: '1px solid #333', boxShadow: `0 0 30px ${getButtonColor()}40`, padding: '25px' }}
         >
           <button className="btn-cerrar-modal" onClick={alCerrar} style={{ color: '#fff' }}>×</button>
 
@@ -134,7 +134,7 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
               {error && <div style={{background: 'rgba(255,75,75,0.15)', padding:'12px', borderRadius:'10px', color: '#ff4b4b', textAlign: 'center', marginBottom: '20px', fontSize: '13px', border: '1px solid rgba(255,75,75,0.3)'}}>{error}</div>}
 
               {/* PESTAÑAS DE NAVEGACIÓN */}
-              <div className="auth-tabs" style={{ background: '#1a1a1a', padding: '5px', borderRadius: '15px', marginBottom: '25px' }}>
+              <div className="auth-tabs" style={{ background: '#1a1a1a', padding: '5px', borderRadius: '15px', marginBottom: '25px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px' }}>
                 <button 
                     className={`auth-tab ${modo === 'login' ? 'activo' : ''}`} 
                     onClick={() => setModo('login')}
@@ -208,8 +208,8 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
                                             <input type="number" placeholder="Edad" value={edad} onChange={e => setEdad(e.target.value)} required min="5" style={{...inputStyle, paddingLeft: '15px'}} />
                                         </div>
                                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-around', background: '#222', borderRadius: '12px', border: '1px solid #333' }}>
-                                            <label style={{cursor:'pointer', fontSize:'12px'}}><input type="radio" checked={genero==='niño'} onChange={()=>setGenero('niño')}/> 👦</label>
-                                            <label style={{cursor:'pointer', fontSize:'12px'}}><input type="radio" checked={genero==='niña'} onChange={()=>setGenero('niña')}/> 👧</label>
+                                            <label style={{cursor:'pointer', fontSize:'12px', color:'#aaa'}}><input type="radio" checked={genero==='niño'} onChange={()=>setGenero('niño')}/> 👦</label>
+                                            <label style={{cursor:'pointer', fontSize:'12px', color:'#aaa'}}><input type="radio" checked={genero==='niña'} onChange={()=>setGenero('niña')}/> 👧</label>
                                         </div>
                                     </div>
                                 )}
