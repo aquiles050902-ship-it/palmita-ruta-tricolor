@@ -1,6 +1,9 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import './App.css';
+import AudioSettings from './components/AudioSettings';
+import audio from './utils/audio';
+import { apiGuardar } from './services/api'; 
 
 // Componentes
 import HeaderBar from './components/HeaderBar';
@@ -11,185 +14,231 @@ import TrophyRoom from './components/TrophyRoom';
 import PalmitaCare from './components/PalmitaCare';
 import UserProfile from './components/UserProfile';
 import TeacherDashboard from './components/TeacherDashboard';
+import MasterDashboard from './components/MasterDashboard'; // <--- IMPORTAR AQUÍ
 import PalmitaMascot from './components/PalmitaMascot'; 
 import MatrixParticles from './components/MatrixParticles'; 
 
 function App() {
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const [visitanteAntiguo, setVisitanteAntiguo] = useState(false);
-  
+  const [menuAmpliado, setMenuAmpliado] = useState(true);
   const [vistaActual, setVistaActual] = useState('bienvenida'); 
   const [mostrarLogin, setMostrarLogin] = useState(false); 
+  const [mostrarLoginProfe, setMostrarLoginProfe] = useState(false);
   const [usuario, setUsuario] = useState(null); 
+  const [nivelSeleccionado, setNivelSeleccionado] = useState(null);
+
+  const [niveles, setNiveles] = useState([
+    { id: 1, nombre: 'La Receta', estado: 'actual' },
+    { id: 2, nombre: 'El Laberinto', estado: 'bloqueado' },
+    { id: 3, nombre: 'Patrones', estado: 'bloqueado' },
+    { id: 4, nombre: 'Detecta el Error', estado: 'bloqueado' },
+    { id: 5, nombre: 'Semáforo', estado: 'bloqueado' },
+    { id: 6, nombre: 'Condicionales', estado: 'bloqueado' },
+    { id: 7, nombre: 'Repeticiones', estado: 'bloqueado' },
+    { id: 8, nombre: 'Tipos de Datos', estado: 'bloqueado' },
+    { id: 9, nombre: 'Lógica Pura', estado: 'bloqueado' },
+    { id: 10, nombre: 'Soy Programador', estado: 'bloqueado' },
+  ]);
 
   useEffect(() => {
     try {
-      const hasVisited = localStorage.getItem('rt_hasVisited') === '1';
-      setVisitanteAntiguo(hasVisited);
-      if (!hasVisited) localStorage.setItem('rt_hasVisited', '1');
+      if (!localStorage.getItem('rt_hasVisited')) localStorage.setItem('rt_hasVisited', '1');
     } catch (_) { }
+    audio.initOnUserGesture();
   }, []);
 
-  const handleLoginExitoso = (datosUsuario) => {
-    setUsuario(datosUsuario);
-    setMostrarLogin(false);
-    setVistaActual('mapa'); // Al entrar, vamos al mapa
-  };
+  const [theme, setTheme] = useState(() => {
+    try {
+      const stored = localStorage.getItem('theme');
+      if (stored) return stored;
+    } catch (_) {}
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
 
-  const entrarComoProfesor = () => {
-    const password = prompt("🔒 Ingrese la clave de docente:");
-    if (password === "admin123") {
-      setVistaActual('dashboard_profe');
-    } else if (password !== null) {
-      alert("Clave incorrecta");
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('theme', theme); } catch (_) {}
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+
+  // --- LOGIN EXITOSO ---
+  const handleLoginExitoso = (datosUsuario) => {
+    const usuarioConInventario = {
+        ...datosUsuario,
+        inventarioGafas: datosUsuario.inventarioGafas || [0, 1], 
+        inventarioSombreros: datosUsuario.inventarioSombreros || [0], 
+        nivelCrecimiento: datosUsuario.nivelCrecimiento || 0 
+    };
+
+    setUsuario(usuarioConInventario); 
+    
+    // Restaurar progreso
+    if (datosUsuario.progresoNiveles) {
+        const nuevosNiveles = niveles.map(n => {
+            if (datosUsuario.progresoNiveles.includes(n.id)) return { ...n, estado: 'completado' };
+            const maxCompletado = Math.max(0, ...datosUsuario.progresoNiveles);
+            if (n.id === maxCompletado + 1) return { ...n, estado: 'actual' };
+            if (n.id > maxCompletado + 1) return { ...n, estado: 'bloqueado' };
+            return n;
+        });
+        setNiveles(nuevosNiveles);
+    }
+    
+    setMostrarLogin(false);
+    setMostrarLoginProfe(false);
+
+    // --- REDIRECCIÓN SEGÚN ROL ---
+    if (datosUsuario.rol === 'master') {
+        setVistaActual('dashboard_master');
+    } else if (datosUsuario.rol === 'teacher') {
+        setVistaActual('dashboard_profe');
+    } else {
+        setVistaActual('mapa');
     }
   };
 
-  const mostrarNavegacion = vistaActual !== 'bienvenida' && vistaActual !== 'dashboard_profe' && vistaActual !== 'quiz';
+  const handleLoginProfe = (datos) => {
+    handleLoginExitoso(datos);
+  };
+
+  const actualizarUsuarioGlobal = (nuevoUsuario) => {
+    setUsuario(nuevoUsuario);
+    if (nuevoUsuario.id) {
+        apiGuardar(nuevoUsuario).catch(err => console.error("Error guardando:", err));
+    }
+  };
+
+  const guardarProgresoNivel = (nivelId) => {
+    if (!usuario) return;
+    const progresoActual = usuario.progresoNiveles || [];
+    
+    if (!progresoActual.includes(nivelId)) {
+        const nuevoProgreso = [...progresoActual, nivelId];
+        const usuarioActualizado = { 
+            ...usuario, 
+            progresoNiveles: nuevoProgreso, 
+            racha: (usuario.racha || 0) + 1, 
+            gemas: (usuario.gemas || 0) + 50 
+        };
+        
+        actualizarUsuarioGlobal(usuarioActualizado);
+
+        const mapaActualizado = niveles.map(n => {
+            if (n.id === nivelId) return { ...n, estado: 'completado' };
+            if (n.id === nivelId + 1) return { ...n, estado: 'actual' };
+            return n;
+        });
+        setNiveles(mapaActualizado);
+    }
+  };
+
+  const mostrarNavegacion = vistaActual !== 'bienvenida' && vistaActual !== 'dashboard_profe' && vistaActual !== 'dashboard_master' && vistaActual !== 'quiz';
+  const mostrarToggleFlotante = vistaActual === 'bienvenida' || vistaActual === 'dashboard_profe' || vistaActual === 'dashboard_master';
 
   return (
-    <div className="app-duolingo">
-      
+    <div className={`app-duolingo theme-${theme}`}>
       {mostrarNavegacion && (
-        <HeaderBar setMenuAbierto={setMenuAbierto} />
+        <HeaderBar 
+            setMenuAbierto={setMenuAbierto} 
+            setMenuAmpliado={setMenuAmpliado} 
+            menuAmpliado={menuAmpliado} 
+            usuario={usuario} 
+            theme={theme}
+            onToggleTheme={toggleTheme}
+        />
       )}
       
       <div className={`overlay ${menuAbierto ? 'visible' : ''}`} onClick={() => setMenuAbierto(false)} />
       
       {mostrarNavegacion && (
-        <SideMenu 
-          menuAbierto={menuAbierto} 
-          setMenuAbierto={setMenuAbierto} 
-          setVistaActual={setVistaActual}
-          vistaActual={vistaActual}
-        />
+        <SideMenu menuAbierto={menuAbierto} setMenuAbierto={setMenuAbierto} setVistaActual={setVistaActual} vistaActual={vistaActual} menuAmpliado={menuAmpliado} />
       )}
 
-      <main className={`contenido-principal 
-          ${vistaActual === 'quiz' ? 'modo-quiz' : ''} 
-          ${vistaActual === 'dashboard_profe' ? 'modo-profe' : ''}
-          ${vistaActual === 'bienvenida' ? 'full-width' : ''} 
-      `}>
+      <main className={`contenido-principal ${!menuAmpliado ? 'menu-contraido' : ''} ${vistaActual==='bienvenida'?'full-width':''} ${(vistaActual==='dashboard_profe' || vistaActual==='dashboard_master')?'modo-profe':''}`}>
         
-        {/* VISTA 1: BIENVENIDA */}
         {vistaActual === 'bienvenida' && (
           <>
             <MatrixParticles />
-
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              className="tarjeta-central"
-              style={{ zIndex: 10, position: 'relative' }} 
-            >
-              <div style={{ marginBottom: '20px' }}>
-                 <PalmitaMascot width={220} />
+            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="tarjeta-central" style={{ zIndex: 10 }}>
+              <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center', width: '100%' }}>
+                <PalmitaMascot width={220} gafasId={1} crecimiento={10} />
               </div>
-
               <h2 className="bienvenida">¡Bienvenido!</h2>
-              <p className="mensaje">
-                  ¿Listo para <span style={{ color: '#39FF14', fontWeight: 'bold', textShadow: '0 0 8px #39FF14' }}>aprender la lógica de programación</span>?
-              </p>
-              
-              <motion.button 
-                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                className="boton-empezar"
-                onClick={() => setMostrarLogin(true)}
-              >
-                EMPEZAR
-              </motion.button>
-
-              <motion.button 
-                 whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                 className="boton-ingresar"
-                 onClick={entrarComoProfesor}
-              >
-                INGRESAR COMO PROFESOR
-              </motion.button>
+              <p className="mensaje">Aprende lógica de programación jugando.</p>
+              <motion.button whileHover={{ scale: 1.05 }} className="boton-empezar" onClick={() => { audio.playSfx('click'); setMostrarLogin(true); }}>EMPEZAR</motion.button>
+              <motion.button whileHover={{ scale: 1.05 }} className="boton-ingresar" onClick={() => { audio.playSfx('click'); setMostrarLoginProfe(true); }}>INGRESAR COMO PROFESOR</motion.button>
             </motion.div>
           </>
         )}
 
-        {/* VISTA 2: MAPA DE AVENTURA (Ruta Vertical Ordenada) */}
         {vistaActual === 'mapa' && (
-          <motion.div 
-            className="pantalla-interior mapa-aventura-container" 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-          >
-            <h2 className="titulo-seccion">TU AVENTURA DE PROGRAMACIÓN</h2>
-            
+          <motion.div className="pantalla-interior mapa-aventura-container" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <h2 className="titulo-seccion" style={{ marginBottom: '50px' }}>TU AVENTURA LÓGICA</h2>
             <div className="mapa-islas">
-              
-              {/* NODO 1: Fundamentos (Activo) */}
-              <motion.div 
-                className="isla-nivel nivel-activo centrado" 
-                whileHover={{ scale: 1.1, zIndex: 2 }}
-                onClick={() => setVistaActual('quiz')}
-              >
-                <div className="icono-isla activa"><span role="img" aria-label="estrella">⭐</span></div>
-                <h3 className="etiqueta-nivel">Fundamentos</h3>
-              </motion.div>
-
-              {/* NODO 2: Secuencias (Activo) */}
-              <motion.div 
-                className="isla-nivel nivel-activo centrado" 
-                whileHover={{ scale: 1.1, zIndex: 2 }}
-                onClick={() => setVistaActual('quiz')}
-              >
-                <div className="icono-isla activa"><span role="img" aria-label="play">▶️</span></div>
-                <h3 className="etiqueta-nivel">Secuencias</h3>
-              </motion.div>
-
-              {/* NODO 3: Patrones (Bloqueado) */}
-              <motion.div 
-                className="isla-nivel bloqueada centrado" 
-                whileHover={{ scale: 1.05, zIndex: 2 }}
-              >
-                <div className="icono-isla bloqueado"><span role="img" aria-label="candado">🔒</span></div>
-                <h3 className="etiqueta-nivel">Patrones</h3>
-              </motion.div>
-
-              {/* NODO 4: Bucles (Bloqueado) */}
-              <motion.div 
-                className="isla-nivel bloqueada centrado" 
-                whileHover={{ scale: 1.05, zIndex: 2 }}
-              >
-                <div className="icono-isla bloqueado"><span role="img" aria-label="candado">🔒</span></div>
-                <h3 className="etiqueta-nivel">Bucles</h3>
-              </motion.div>
-
-              {/* NODO 5: Condicionales (Bloqueado) */}
-              <motion.div 
-                className="isla-nivel bloqueada centrado" 
-                whileHover={{ scale: 1.05, zIndex: 2 }}
-              >
-                <div className="icono-isla bloqueado"><span role="img" aria-label="candado">🔒</span></div>
-                <h3 className="etiqueta-nivel">Condicionales</h3>
-              </motion.div>
-              
-              {/* Añadir espacio para el scroll final */}
-              <div style={{ height: '50px' }} /> 
-
+              {niveles.map((nivel, index) => {
+                const residuo = index % 4;
+                let posicionclase = residuo === 1 ? 'layout-izquierda' : (residuo === 3 ? 'layout-derecha' : '');
+                return (
+                  <div key={nivel.id} className={`fila-nivel ${posicionclase}`}>
+                    <motion.div 
+                      className={`isla-nivel ${nivel.estado === 'bloqueado' ? 'bloqueada' : ''}`}
+                      whileHover={nivel.estado !== 'bloqueado' ? { scale: 1.1 } : {}}
+                      onClick={() => {
+                        if (nivel.estado !== 'bloqueado') {
+                          audio.playSfx('click');
+                          setNivelSeleccionado(nivel.id);
+                          setVistaActual('quiz');
+                        }
+                      }}
+                    >
+                      {nivel.estado === 'actual' && <div className="burbuja-empezar">EMPEZAR</div>}
+                      <div className={`icono-isla ${nivel.estado === 'actual' ? 'activa' : ''} ${nivel.estado === 'bloqueado' ? 'bloqueado' : ''}`}>
+                         {nivel.estado === 'completado' ? 'Wm' : nivel.estado === 'actual' ? '⭐' : '🔒'}
+                      </div>
+                      <h3 className="etiqueta-nivel">{nivel.nombre}</h3>
+                    </motion.div>
+                  </div>
+                );
+              })}
+              <div style={{ height: '150px' }}></div> 
             </div>
           </motion.div>
         )}
 
-        {/* VISTA 3: QUIZ (JUEGO) */}
         {vistaActual === 'quiz' && (
-          <QuizEngine alCerrar={() => setVistaActual('mapa')} alCompletar={() => setVistaActual('mapa')} />
+          <QuizEngine 
+            nivelId={nivelSeleccionado}
+            alCerrar={() => setVistaActual('mapa')} 
+            alCompletar={() => {
+              guardarProgresoNivel(nivelSeleccionado);
+              setVistaActual('mapa');
+            }} 
+          />
         )}
 
-        {/* VISTAS EXTRAS: LOGROS, MASCOTA, PERFIL */}
-        {vistaActual === 'logros' && <TrophyRoom />}
-        {vistaActual === 'mascota' && <PalmitaCare />}
+        {vistaActual === 'logros' && <TrophyRoom usuario={usuario} />}
+        {vistaActual === 'mascota' && <PalmitaCare usuario={usuario} actualizarUsuario={actualizarUsuarioGlobal} />}
         {vistaActual === 'perfil' && <UserProfile usuario={usuario} />}
-
-        {/* VISTA PROFESOR */}
         {vistaActual === 'dashboard_profe' && <TeacherDashboard alSalir={() => setVistaActual('bienvenida')} />}
-
-        {/* MODAL LOGIN */}
+        {/* RENDERIZADO DEL DASHBOARD MASTER */}
+        {vistaActual === 'dashboard_master' && <MasterDashboard alSalir={() => setVistaActual('bienvenida')} />}
+        {vistaActual === 'audio' && <AudioSettings />}
+        
         {mostrarLogin && <AuthModal alCerrar={() => setMostrarLogin(false)} alAutenticar={handleLoginExitoso} />}
+        {mostrarLoginProfe && <AuthModal alCerrar={() => setMostrarLoginProfe(false)} alAutenticar={handleLoginProfe} esProfesor={true} />}
 
       </main>
+
+      {mostrarToggleFlotante && (
+        <button
+          className="btn-toggle-tema-float"
+          onClick={() => { audio.playSfx('click'); toggleTheme(); }}
+          title={`Cambiar a modo ${theme === 'dark' ? 'claro' : 'oscuro'}`}
+        >
+          {theme === 'dark' ? '🌞 Claro' : '🌙 Oscuro'}
+        </button>
+      )}
     </div>
   );
 }

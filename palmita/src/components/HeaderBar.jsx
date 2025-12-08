@@ -1,26 +1,31 @@
 import { motion } from "framer-motion";
-import { Flame, Gem, Menu as MenuIcon, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Flame, Gem, ChevronsLeft, ChevronsRight } from "lucide-react";
 import PalmitaMascot from "./PalmitaMascot"; 
 
-export default function HeaderBar({ setMenuAbierto, setMenuAmpliado, menuAmpliado }) {
+export default function HeaderBar({ setMenuAmpliado, menuAmpliado, usuario, playSound, theme, onToggleTheme }) { 
+  const gemas = usuario ? usuario.gemas : 0;
+  const racha = usuario ? usuario.racha : 0;
+
+  const toggleMenu = () => {
+      setMenuAmpliado(!menuAmpliado);
+      if(playSound) playSound('click_menu'); 
+  }
+
   return (
     <header className="barra-superior">
       <div className="izquierda">
-        {/* NUEVO: Botón de Contraer/Expandir la Barra Lateral */}
         <motion.div 
-          whileHover={{ scale: 1.2 }} 
+          whileHover={{ scale: 1.1 }} 
           className="menu-boton" 
-          onClick={() => setMenuAmpliado((v) => !v)}
-          role="button"
-          aria-label={menuAmpliado ? "Contraer menú" : "Expandir menú"}
+          onClick={toggleMenu} 
+          style={{ cursor: 'pointer', marginRight: '15px' }}
         >
-          {/* Mostramos el icono de cerrar si está ampliado, o de abrir si está contraído */}
           {menuAmpliado ? <ChevronsLeft size={32} /> : <ChevronsRight size={32} />}
         </motion.div>
         
-        {/* Logo Animado */}
-        <div style={{ width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginLeft: '10px', marginRight: '5px' }}>
-          <PalmitaMascot width={90} /> 
+        <div style={{ width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '5px' }}>
+           {/* CORRECCIÓN: crecimiento={10} para que el logo llene el espacio */}
+           <PalmitaMascot width={50} gafasId={1} crecimiento={10} /> 
         </div>
         
         <h1 className="logo">Palmita</h1>
@@ -29,16 +34,23 @@ export default function HeaderBar({ setMenuAbierto, setMenuAmpliado, menuAmpliad
       <div className="derecha">
         <div className="gemas">
           <Gem className="icono-gema" size={28} />
-          <span>500</span>
+          <span>{gemas}</span>
         </div>
-        <div className="corazones">
-          <span role="img" aria-label="Vidas">❤</span> 
-          <span className="numero-corazones">5</span>
-        </div>
+        
         <div className="racha">
           <Flame className="llama" size={32} />
-          <span className="numero-racha">3</span>
+          <span className="numero-racha">{racha}</span>
         </div>
+      <button title={`Cambiar a modo ${theme === 'dark' ? 'claro' : 'oscuro'}`} onClick={onToggleTheme} style={{
+          background: 'transparent',
+          color: 'inherit',
+          border: '1px solid #444',
+          padding: '8px 12px',
+          borderRadius: '10px',
+          cursor: 'pointer'
+        }}>
+          {theme === 'dark' ? '🌞 Claro' : '🌙 Oscuro'}
+        </button>
       </div>
     </header>
   );
