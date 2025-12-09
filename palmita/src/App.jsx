@@ -5,7 +5,6 @@ import AudioSettings from './components/AudioSettings';
 import audio from './utils/audio';
 import { apiGuardar } from './services/api'; 
 
-// Componentes
 import HeaderBar from './components/HeaderBar';
 import SideMenu from './components/SideMenu';
 import QuizEngine from './components/QuizEngine';
@@ -14,7 +13,7 @@ import TrophyRoom from './components/TrophyRoom';
 import PalmitaCare from './components/PalmitaCare';
 import UserProfile from './components/UserProfile';
 import TeacherDashboard from './components/TeacherDashboard';
-import MasterDashboard from './components/MasterDashboard'; // <--- IMPORTAR AQUÍ
+import MasterDashboard from './components/MasterDashboard';
 import PalmitaMascot from './components/PalmitaMascot'; 
 import MatrixParticles from './components/MatrixParticles'; 
 
@@ -27,6 +26,7 @@ function App() {
   const [usuario, setUsuario] = useState(null); 
   const [nivelSeleccionado, setNivelSeleccionado] = useState(null);
 
+  // --- LISTA DE 20 NIVELES PARA EL MAPA ---
   const [niveles, setNiveles] = useState([
     { id: 1, nombre: 'La Receta', estado: 'actual' },
     { id: 2, nombre: 'El Laberinto', estado: 'bloqueado' },
@@ -37,21 +37,26 @@ function App() {
     { id: 7, nombre: 'Repeticiones', estado: 'bloqueado' },
     { id: 8, nombre: 'Tipos de Datos', estado: 'bloqueado' },
     { id: 9, nombre: 'Lógica Pura', estado: 'bloqueado' },
-    { id: 10, nombre: 'Soy Programador', estado: 'bloqueado' },
+    { id: 10, nombre: 'Conceptos', estado: 'bloqueado' },
+    { id: 11, nombre: 'Bucles Anidados', estado: 'bloqueado' },
+    { id: 12, nombre: 'Variables', estado: 'bloqueado' },
+    { id: 13, nombre: 'Operadores Y/O', estado: 'bloqueado' },
+    { id: 14, nombre: 'Funciones', estado: 'bloqueado' },
+    { id: 15, nombre: 'Eventos Pro', estado: 'bloqueado' },
+    { id: 16, nombre: 'Coordenadas X,Y', estado: 'bloqueado' },
+    { id: 17, nombre: 'Listas (Arrays)', estado: 'bloqueado' },
+    { id: 18, nombre: 'Búsqueda', estado: 'bloqueado' },
+    { id: 19, nombre: 'Binario 0101', estado: 'bloqueado' },
+    { id: 20, nombre: 'Soy Programador', estado: 'bloqueado' },
   ]);
 
   useEffect(() => {
-    try {
-      if (!localStorage.getItem('rt_hasVisited')) localStorage.setItem('rt_hasVisited', '1');
-    } catch (_) { }
+    try { if (!localStorage.getItem('rt_hasVisited')) localStorage.setItem('rt_hasVisited', '1'); } catch (_) { }
     audio.initOnUserGesture();
   }, []);
 
   const [theme, setTheme] = useState(() => {
-    try {
-      const stored = localStorage.getItem('theme');
-      if (stored) return stored;
-    } catch (_) {}
+    try { const stored = localStorage.getItem('theme'); if (stored) return stored; } catch (_) {}
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
@@ -62,7 +67,6 @@ function App() {
 
   const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
 
-  // --- LOGIN EXITOSO ---
   const handleLoginExitoso = (datosUsuario) => {
     const usuarioConInventario = {
         ...datosUsuario,
@@ -70,15 +74,13 @@ function App() {
         inventarioSombreros: datosUsuario.inventarioSombreros || [0], 
         nivelCrecimiento: datosUsuario.nivelCrecimiento || 0 
     };
-
     setUsuario(usuarioConInventario); 
     
-    // Restaurar progreso
     if (datosUsuario.progresoNiveles) {
         const nuevosNiveles = niveles.map(n => {
             if (datosUsuario.progresoNiveles.includes(n.id)) return { ...n, estado: 'completado' };
             const maxCompletado = Math.max(0, ...datosUsuario.progresoNiveles);
-            if (n.id === maxCompletado + 1) return { ...n, estado: 'actual' };
+            if (n.id === maxCompletado + 1 && maxCompletado < 20) return { ...n, estado: 'actual' };
             if (n.id > maxCompletado + 1) return { ...n, estado: 'bloqueado' };
             return n;
         });
@@ -88,31 +90,21 @@ function App() {
     setMostrarLogin(false);
     setMostrarLoginProfe(false);
 
-    // --- REDIRECCIÓN SEGÚN ROL ---
-    if (datosUsuario.rol === 'master') {
-        setVistaActual('dashboard_master');
-    } else if (datosUsuario.rol === 'teacher') {
-        setVistaActual('dashboard_profe');
-    } else {
-        setVistaActual('mapa');
-    }
+    if (datosUsuario.rol === 'master') setVistaActual('dashboard_master');
+    else if (datosUsuario.rol === 'teacher') setVistaActual('dashboard_profe');
+    else setVistaActual('mapa');
   };
 
-  const handleLoginProfe = (datos) => {
-    handleLoginExitoso(datos);
-  };
+  const handleLoginProfe = (datos) => handleLoginExitoso(datos);
 
   const actualizarUsuarioGlobal = (nuevoUsuario) => {
     setUsuario(nuevoUsuario);
-    if (nuevoUsuario.id) {
-        apiGuardar(nuevoUsuario).catch(err => console.error("Error guardando:", err));
-    }
+    if (nuevoUsuario.id) apiGuardar(nuevoUsuario).catch(err => console.error("Error guardando:", err));
   };
 
   const guardarProgresoNivel = (nivelId) => {
     if (!usuario) return;
     const progresoActual = usuario.progresoNiveles || [];
-    
     if (!progresoActual.includes(nivelId)) {
         const nuevoProgreso = [...progresoActual, nivelId];
         const usuarioActualizado = { 
@@ -121,9 +113,7 @@ function App() {
             racha: (usuario.racha || 0) + 1, 
             gemas: (usuario.gemas || 0) + 50 
         };
-        
         actualizarUsuarioGlobal(usuarioActualizado);
-
         const mapaActualizado = niveles.map(n => {
             if (n.id === nivelId) return { ...n, estado: 'completado' };
             if (n.id === nivelId + 1) return { ...n, estado: 'actual' };
@@ -133,27 +123,22 @@ function App() {
     }
   };
 
+  const manejarDerrota = () => {
+    if (!usuario) return;
+    const nuevaRacha = Math.max(0, (usuario.racha || 0) - 1);
+    const nuevasGemas = Math.max(0, (usuario.gemas || 0) - 20);
+    const usuarioCastigado = { ...usuario, racha: nuevaRacha, gemas: nuevasGemas };
+    actualizarUsuarioGlobal(usuarioCastigado);
+  };
+
   const mostrarNavegacion = vistaActual !== 'bienvenida' && vistaActual !== 'dashboard_profe' && vistaActual !== 'dashboard_master' && vistaActual !== 'quiz';
-  const mostrarToggleFlotante = vistaActual === 'bienvenida' || vistaActual === 'dashboard_profe' || vistaActual === 'dashboard_master';
+  const mostrarToggleFlotante = ['bienvenida', 'dashboard_profe', 'dashboard_master'].includes(vistaActual);
 
   return (
     <div className={`app-duolingo theme-${theme}`}>
-      {mostrarNavegacion && (
-        <HeaderBar 
-            setMenuAbierto={setMenuAbierto} 
-            setMenuAmpliado={setMenuAmpliado} 
-            menuAmpliado={menuAmpliado} 
-            usuario={usuario} 
-            theme={theme}
-            onToggleTheme={toggleTheme}
-        />
-      )}
-      
+      {mostrarNavegacion && <HeaderBar setMenuAbierto={setMenuAbierto} setMenuAmpliado={setMenuAmpliado} menuAmpliado={menuAmpliado} usuario={usuario} theme={theme} onToggleTheme={toggleTheme} />}
       <div className={`overlay ${menuAbierto ? 'visible' : ''}`} onClick={() => setMenuAbierto(false)} />
-      
-      {mostrarNavegacion && (
-        <SideMenu menuAbierto={menuAbierto} setMenuAbierto={setMenuAbierto} setVistaActual={setVistaActual} vistaActual={vistaActual} menuAmpliado={menuAmpliado} />
-      )}
+      {mostrarNavegacion && <SideMenu menuAbierto={menuAbierto} setMenuAbierto={setMenuAbierto} setVistaActual={setVistaActual} vistaActual={vistaActual} menuAmpliado={menuAmpliado} />}
 
       <main className={`contenido-principal ${!menuAmpliado ? 'menu-contraido' : ''} ${vistaActual==='bienvenida'?'full-width':''} ${(vistaActual==='dashboard_profe' || vistaActual==='dashboard_master')?'modo-profe':''}`}>
         
@@ -206,39 +191,17 @@ function App() {
           </motion.div>
         )}
 
-        {vistaActual === 'quiz' && (
-          <QuizEngine 
-            nivelId={nivelSeleccionado}
-            alCerrar={() => setVistaActual('mapa')} 
-            alCompletar={() => {
-              guardarProgresoNivel(nivelSeleccionado);
-              setVistaActual('mapa');
-            }} 
-          />
-        )}
-
+        {vistaActual === 'quiz' && <QuizEngine nivelId={nivelSeleccionado} alCerrar={() => setVistaActual('mapa')} alCompletar={() => { guardarProgresoNivel(nivelSeleccionado); setVistaActual('mapa'); }} alPerder={manejarDerrota} />}
         {vistaActual === 'logros' && <TrophyRoom usuario={usuario} />}
         {vistaActual === 'mascota' && <PalmitaCare usuario={usuario} actualizarUsuario={actualizarUsuarioGlobal} />}
         {vistaActual === 'perfil' && <UserProfile usuario={usuario} />}
         {vistaActual === 'dashboard_profe' && <TeacherDashboard alSalir={() => setVistaActual('bienvenida')} />}
-        {/* RENDERIZADO DEL DASHBOARD MASTER */}
         {vistaActual === 'dashboard_master' && <MasterDashboard alSalir={() => setVistaActual('bienvenida')} />}
         {vistaActual === 'audio' && <AudioSettings />}
-        
         {mostrarLogin && <AuthModal alCerrar={() => setMostrarLogin(false)} alAutenticar={handleLoginExitoso} />}
         {mostrarLoginProfe && <AuthModal alCerrar={() => setMostrarLoginProfe(false)} alAutenticar={handleLoginProfe} esProfesor={true} />}
-
       </main>
-
-      {mostrarToggleFlotante && (
-        <button
-          className="btn-toggle-tema-float"
-          onClick={() => { audio.playSfx('click'); toggleTheme(); }}
-          title={`Cambiar a modo ${theme === 'dark' ? 'claro' : 'oscuro'}`}
-        >
-          {theme === 'dark' ? '🌞 Claro' : '🌙 Oscuro'}
-        </button>
-      )}
+      {mostrarToggleFlotante && <button className="btn-toggle-tema-float" onClick={() => { audio.playSfx('click'); toggleTheme(); }} title={`Cambiar a modo ${theme === 'dark' ? 'claro' : 'oscuro'}`}>{theme === 'dark' ? '🌞 Claro' : '🌙 Oscuro'}</button>}
     </div>
   );
 }
