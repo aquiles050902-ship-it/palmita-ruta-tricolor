@@ -186,22 +186,47 @@ const QUESTIONS_DB = {
   ]
 };
 
-export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 1 }) {
-  // Estado para guardar la pregunta seleccionada aleatoriamente
+// Modificamos el componente para aceptar `desafiosCompletados` (lista de IDs únicos)
+export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 1, desafiosCompletados = [] }) {
   const [preguntaActual, setPreguntaActual] = useState(null);
+  const [quizIdActual, setQuizIdActual] = useState(null); // Nuevo estado para guardar el ID único: Nivel-Variante
   
-  // EFECTO: Se ejecuta cada vez que cambia el nivel
+  // Función para seleccionar un quiz no completado
+  const seleccionarNuevoQuiz = (targetNivelId) => {
+    const pool = QUESTIONS_DB[targetNivelId] || QUESTIONS_DB[1];
+    
+    // 1. Crear una lista de índices de variantes que *no* han sido completadas para este nivel
+    const variantesDisponibles = pool
+      .map((_, index) => index)
+      .filter(index => !desafiosCompletados.includes(`${targetNivelId}-${index + 1}`));
+
+    let selectedIndex;
+    
+    if (variantesDisponibles.length > 0) {
+      // 2. Si hay variantes disponibles, selecciona una al azar
+      const randomAvailableIndex = Math.floor(Math.random() * variantesDisponibles.length);
+      selectedIndex = variantesDisponibles[randomAvailableIndex];
+    } else {
+      // 3. Si todas están completas, selecciona una al azar (para re-jugar)
+      selectedIndex = Math.floor(Math.random() * pool.length);
+    }
+    
+    const varianteIndex = selectedIndex + 1;
+    const nuevoQuizId = `${targetNivelId}-${varianteIndex}`;
+    
+    setPreguntaActual(pool[selectedIndex]);
+    setQuizIdActual(nuevoQuizId);
+  };
+  
   useEffect(() => {
-    // 1. Obtenemos el "pool" (lista de 5 preguntas) del nivel actual
-    const pool = QUESTIONS_DB[nivelId] || QUESTIONS_DB[1];
-    // 2. Elegimos un número al azar entre 0 y 4
-    const randomIndex = Math.floor(Math.random() * pool.length);
-    // 3. Guardamos esa pregunta específica
-    setPreguntaActual(pool[randomIndex]);
-  }, [nivelId]);
-  
+    seleccionarNuevoQuiz(nivelId);
+    setSeleccion(null);
+    setEstado("pendiente");
+    setVidas(3);
+  }, [nivelId, desafiosCompletados.length]); // Dependencia clave: re-seleccionar si se completa uno
+
   const [seleccion, setSeleccion] = useState(null);
-  const [estado, setEstado] = useState("pendiente"); // pendiente, correcto, error_intento, derrota
+  const [estado, setEstado] = useState("pendiente"); 
   const [vidas, setVidas] = useState(3); 
 
   const comprobarRespuesta = () => {
@@ -227,20 +252,20 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
     }
   };
 
-  // Función "INTENTAR DE NUEVO"
   const handleReintentar = () => {
-      // 1. Ejecutar castigo (si existe la función)
       if (alPerder) alPerder();
       
-      // 2. REINICIAR EL NIVEL CON OTRA PREGUNTA
-      const pool = QUESTIONS_DB[nivelId] || QUESTIONS_DB[1];
-      const randomIndex = Math.floor(Math.random() * pool.length); // Nueva elección aleatoria
-      setPreguntaActual(pool[randomIndex]);
+      // REINICIAR CON UNA NUEVA PREGUNTA (ya maneja la selección)
+      seleccionarNuevoQuiz(nivelId); 
       
-      // 3. Resetear estados
       setVidas(3);
       setEstado("pendiente");
       setSeleccion(null);
+  };
+
+  const avanzar = () => {
+    // EN LUGAR DE ENVIAR solo nivelId, ENVIAMOS el ID ÚNICO del desafío (ej: "1-2")
+    alCompletar(quizIdActual);
   };
 
   if (!preguntaActual) return <div className="quiz-container" style={{display:'flex',justifyContent:'center',alignItems:'center',color:'white'}}>Cargando...</div>;
@@ -269,6 +294,8 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
         ) : (
             <>
                 <h2 className="quiz-titulo">{preguntaActual.titulo}</h2>
+                {/* Mostramos el progreso actual */}
+                <p style={{ color: '#00C2CB', fontWeight: 'bold', margin: '0 0 10px 0', fontSize: '14px' }}>Desafío: {quizIdActual}</p>
                 <p className="quiz-instruccion">{preguntaActual.instruccion}</p>
                 <div className="quiz-visual"><span>{preguntaActual.contenido}</span></div>
                 <div className="quiz-opciones">
@@ -297,7 +324,7 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
           {estado === 'derrota' && <div className="feedback-content error"><RefreshCw size={40} color="white" /><div><h3>Fin del juego</h3></div></div>}
         </div>
 
-        {estado === 'correcto' && <button className="btn-comprobar correcto" onClick={() => alCompletar(true)}>CONTINUAR</button>}
+        {estado === 'correcto' && <button className="btn-comprobar correcto" onClick={avanzar}>CONTINUAR</button>}
         {estado === 'derrota' && <button className="btn-comprobar error" onClick={handleReintentar} style={{background:'#ff4b4b'}}>REINTENTAR</button>}
         {(estado === 'pendiente' || estado === 'error_intento') && <button className={`btn-comprobar ${estado==='error_intento'?'error':''}`} onClick={comprobarRespuesta} disabled={estado === 'error_intento'}>COMPROBAR</button>}
       </div>

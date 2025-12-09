@@ -5,8 +5,9 @@ export default function UserProfile({ usuario }) {
   const racha = usuario ? usuario.racha || 0 : 0;
   const gemas = usuario ? usuario.gemas || 0 : 0;
   
-  // Calculamos cuántos niveles ha pasado
-  const nivelesCompletados = usuario && usuario.progresoNiveles ? usuario.progresoNiveles.length : 0;
+  // AHORA: Calculamos cuántos niveles principales (1-20) tienen al menos un desafío completado.
+  // Este valor se precalcula en App.jsx como usuario.nivelMax para mayor eficiencia.
+  const nivelesUnicosConProgreso = usuario?.nivelMax || 0;
 
   // --- LÓGICA DE LIGAS ---
   const obtenerLiga = (cantidad) => {
@@ -16,22 +17,22 @@ export default function UserProfile({ usuario }) {
     return { nombre: "Bronce",  color: "#CD7F32", sombra: "#8D5524" }; // Bronce
   };
 
-  const infoLiga = obtenerLiga(nivelesCompletados);
+  const infoLiga = obtenerLiga(nivelesUnicosConProgreso);
   const colorAvatar = usuario?.genero === 'niña' ? '#ff69b4' : '#1e90ff';
-
+  
   // Calculamos cuánto falta para la siguiente liga
   let siguienteMeta = 0;
   let mensajeProgreso = "";
   
   if (infoLiga.nombre === "Bronce") {
       siguienteMeta = 3;
-      mensajeProgreso = `Faltan ${siguienteMeta - nivelesCompletados} niveles para Plata`;
+      mensajeProgreso = `Faltan ${siguienteMeta - nivelesUnicosConProgreso} niveles para Plata`;
   } else if (infoLiga.nombre === "Plata") {
       siguienteMeta = 6;
-      mensajeProgreso = `Faltan ${siguienteMeta - nivelesCompletados} niveles para Oro`;
+      mensajeProgreso = `Faltan ${siguienteMeta - nivelesUnicosConProgreso} niveles para Oro`;
   } else if (infoLiga.nombre === "Oro") {
       siguienteMeta = 9;
-      mensajeProgreso = `Faltan ${siguienteMeta - nivelesCompletados} niveles para Diamante`;
+      mensajeProgreso = `Faltan ${siguienteMeta - nivelesUnicosConProgreso} niveles para Diamante`;
   } else {
       mensajeProgreso = "¡Eres una leyenda!";
   }
@@ -66,7 +67,8 @@ export default function UserProfile({ usuario }) {
           </div>
           <div className="stat-item">
             <span>🏆</span>
-            <strong>{nivelesCompletados}</strong>
+            {/* Mostramos el conteo de niveles principales con progreso */}
+            <strong>{nivelesUnicosConProgreso}</strong> 
             <small>Niveles</small>
           </div>
         </div>
@@ -97,7 +99,7 @@ export default function UserProfile({ usuario }) {
                 <div style={{ width: '100%', height: '8px', background: 'rgba(0,0,0,0.1)', borderRadius: '10px', marginTop: '10px', overflow: 'hidden' }}>
                     <div style={{ 
                         height: '100%', 
-                        width: `${(nivelesCompletados / siguienteMeta) * 100}%`, 
+                        width: `${(nivelesUnicosConProgreso / siguienteMeta) * 100}%`, 
                         background: infoLiga.color,
                         borderRadius: '10px',
                         transition: 'width 0.5s ease'

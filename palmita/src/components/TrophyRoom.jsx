@@ -2,8 +2,8 @@ import { Award, Lock, Star, Zap, Hexagon, Code, Database, Globe, Cpu, Hash, Meda
 
 export default function TrophyRoom({ usuario }) {
   
-  // Obtenemos los niveles que ha pasado el usuario (ej: [1, 2, 5])
-  const nivelesCompletados = usuario?.progresoNiveles || [];
+  // AHORA: Obtenemos los IDs ÚNICOS de desafíos que ha pasado el usuario (ej: ["1-1", "1-2", "5-3"])
+  const desafiosCompletados = usuario?.progresoNiveles || [];
 
   // Configuración de los 20 Niveles Principales (Temas)
   const temasNiveles = {
@@ -40,8 +40,8 @@ export default function TrophyRoom({ usuario }) {
       // Creamos 5 trofeos por cada nivel
       for (let variante = 1; variante <= 5; variante++) {
         listaTrofeos.push({
-          id_unico: `${nivel}-${variante}`, // ID único para react key
-          nivel_asociado: nivel,            // Nivel que desbloquea este trofeo
+          id_unico: `${nivel}-${variante}`, // ID único para react key: "1-1", "1-2", etc.
+          nivel_asociado: nivel,            
           nombre: `${tema.nombre} ${variante}`,
           desc: `Desafío ${nivel}.${variante}`,
           color: tema.color,
@@ -53,6 +53,7 @@ export default function TrophyRoom({ usuario }) {
   };
 
   const trofeos = generarTrofeos();
+  const totalDesafiosCompletados = desafiosCompletados.length;
 
   return (
     <div className="pantalla-interior">
@@ -62,11 +63,11 @@ export default function TrophyRoom({ usuario }) {
       <div style={{ width: '90%', maxWidth: '600px', marginBottom: '30px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '14px', color: '#aaa' }}>
             <span>Progreso Total</span>
-            <span>{nivelesCompletados.length * 5} / 100</span>
+            <span>{totalDesafiosCompletados} / 100</span>
         </div>
         <div style={{ width: '100%', height: '12px', background: '#333', borderRadius: '6px', overflow: 'hidden' }}>
             <div style={{ 
-                width: `${(nivelesCompletados.length / 20) * 100}%`, 
+                width: `${(totalDesafiosCompletados / 100) * 100}%`, 
                 height: '100%', 
                 background: 'linear-gradient(90deg, #58cc02, #00C2CB)',
                 transition: 'width 1s ease'
@@ -76,8 +77,8 @@ export default function TrophyRoom({ usuario }) {
 
       <div className="grid-trofeos" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '10px' }}>
         {trofeos.map((t) => {
-          // Si el usuario completó el Nivel X, gana los 5 trofeos de ese nivel
-          const ganado = nivelesCompletados.includes(t.nivel_asociado);
+          // LÓGICA CLAVE: Un trofeo está ganado si su ID ÚNICO está en la lista de desafíos completados
+          const ganado = desafiosCompletados.includes(t.id_unico);
           const Icono = t.icon;
 
           return (
