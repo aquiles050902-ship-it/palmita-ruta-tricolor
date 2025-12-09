@@ -14,7 +14,6 @@ const db = mysql.createConnection({
     password: '',
     database: 'palmita_db'
 });
-
 db.connect(err => {
     if (err) {
         console.error('❌ Error conectando a MySQL:', err);
@@ -22,7 +21,6 @@ db.connect(err => {
     }
     console.log('✅ Conectado a MySQL (XAMPP)');
 });
-
 // --- RUTA 1: REGISTRO ---
 app.post('/api/registro', (req, res) => {
     const { nombre, apellido, password, edad, genero, rol, email, cedula, codigoMaster } = req.body;
@@ -32,7 +30,8 @@ app.post('/api/registro', (req, res) => {
         const CODIGO_SECRETO = "palmita@123"; // Clave actualizada
         if (codigoMaster !== CODIGO_SECRETO) {
             return res.status(403).json({ error: "Código de Director incorrecto" });
-        }
+      
+    }
     }
 
     const gemas = 0, racha = 0, nivelCrecimiento = 0;
@@ -46,13 +45,13 @@ app.post('/api/registro', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     const valores = [
+ 
         nombre, apellido, password, edad, genero, rol, email, cedula, 
         gemas, racha, nivelCrecimiento, 
         JSON.stringify(progresoNiveles), 
         JSON.stringify(inventarioGafas), 
         JSON.stringify(inventarioSombreros)
     ];
-
     db.query(sql, valores, (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Usuario registrado', id: result.insertId, rol });
@@ -68,10 +67,16 @@ app.post('/api/login', (req, res) => {
         if (err) return res.status(500).json(err);
         if (results.length > 0) {
             const user = results[0];
+     
             try {
-                user.progresoNiveles = JSON.parse(user.progresoNiveles || '[]');
+                // CORRECCIÓN: Asegura que el valor es '[]' si es NULL antes de parsear.
+                user.progresoNiveles = JSON.parse(user.progresoNiveles || '[]'); 
                 user.inventarioGafas = JSON.parse(user.inventarioGafas || '[0,1]');
                 user.inventarioSombreros = JSON.parse(user.inventarioSombreros || '[0]');
+                
+                // DOBLE CHEQUEO: Si el parseo fue exitoso pero no es un array (dato corrupto/antiguo), lo reiniciamos.
+                if (!Array.isArray(user.progresoNiveles)) user.progresoNiveles = []; 
+
             } catch (e) {
                 user.progresoNiveles = [];
                 user.inventarioGafas = [0,1];
@@ -83,7 +88,6 @@ app.post('/api/login', (req, res) => {
         }
     });
 });
-
 // --- RUTA 3: GUARDAR PROGRESO ---
 app.post('/api/guardar', (req, res) => {
     const { id, gemas, racha, nivelCrecimiento, gafasId, sombreroId, progresoNiveles, inventarioGafas, inventarioSombreros } = req.body;
@@ -94,6 +98,7 @@ app.post('/api/guardar', (req, res) => {
         WHERE id = ?`;
 
     const valores = [
+     
         gemas, racha, nivelCrecimiento, gafasId, sombreroId,
         JSON.stringify(progresoNiveles), 
         JSON.stringify(inventarioGafas), 
@@ -106,7 +111,6 @@ app.post('/api/guardar', (req, res) => {
         res.json({ message: 'Guardado' });
     });
 });
-
 // --- RUTA 4: OBTENER ESTUDIANTES ---
 app.get('/api/estudiantes', (req, res) => {
     const sql = "SELECT * FROM usuarios WHERE rol = 'estudiante'";
@@ -115,19 +119,26 @@ app.get('/api/estudiantes', (req, res) => {
         const estudiantes = results.map(user => {
             let niveles = [];
             try {
+             
                 niveles = JSON.parse(user.progresoNiveles || '[]');
+                // Corregimos aquí también para evitar fallos si el dato es mal
+                if (!Array.isArray(niveles)) niveles = []; 
                 if (typeof niveles === 'string') niveles = []; 
             } catch (e) { niveles = []; }
+            
+            // Calculamos el nivel máximo completado a partir del nuevo formato "Nivel-Variante"
+            const nivelesPrincipales = niveles.map(id => parseInt(id.split('-')[0])).filter(n => !isNaN(n));
+            const maxNivel = nivelesPrincipales.length > 0 ? Math.max(...nivelesPrincipales) : 0;
+            
             return {
                 ...user,
                 progresoNiveles: niveles,
-                nivelMax: Array.isArray(niveles) && niveles.length > 0 ? Math.max(...niveles) : 0
+                nivelMax: maxNivel
             };
         });
         res.json(estudiantes);
     });
 });
-
 // --- RUTA 5: OBTENER PROFESORES ---
 app.get('/api/profesores', (req, res) => {
     const sql = "SELECT id, nombre, apellido, email, cedula, rol FROM usuarios WHERE rol = 'teacher'";
@@ -136,7 +147,6 @@ app.get('/api/profesores', (req, res) => {
         res.json(results);
     });
 });
-
 // --- RUTA 6: ELIMINAR USUARIO ---
 app.delete('/api/estudiantes/:id', (req, res) => {
     const { id } = req.params;
@@ -146,7 +156,6 @@ app.delete('/api/estudiantes/:id', (req, res) => {
         res.json({ message: "Usuario eliminado" });
     });
 });
-
 app.listen(3000, () => {
     console.log('🚀 Servidor Backend corriendo en http://localhost:3000');
 });

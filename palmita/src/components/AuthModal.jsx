@@ -11,12 +11,11 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
   const [password, setPassword] = useState('');
-  const [email, setEmail] = useState('');
-  const [cedula, setCedula] = useState('');
+  const [email, setEmail] = useState(''); // Se usa solo para Profesor/Master
+  const [cedula, setCedula] = useState(''); // Se usa solo para Profesor
   const [edad, setEdad] = useState('');
-  const [genero, setGenero] = useState('niño');
+  const [genero, setGenero] = useState('niño'); 
   
-  // Estado opcional por si se requiere en el futuro
   const [codigoMaster, setCodigoMaster] = useState('');
 
   const [error, setError] = useState('');
@@ -29,24 +28,25 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
     setError('');
     setCargando(true);
 
+    // DETERMINAR EL ROL
+    const rol = modo === 'master' ? 'master' : (esProfesor ? 'teacher' : 'estudiante');
+
     try {
       // --- CASO 1: LOGIN (Estudiantes, Profesores y DIRECTORES) ---
-      // Ahora el modo 'master' también usa la lógica de login
       if (modo === 'login' || modo === 'master') {
         
-        // Identificador: Para Master/Profe puede ser email o nombre (el input de usuario usa 'nombre')
-        const identificador = (esProfesor || modo === 'master') ? (nombre || email) : nombre;
+        // Identificador: Si es estudiante, solo usamos el nombre. Si es profesor/master, usamos email.
+        const identificador = rol === 'estudiante' ? nombre : email; 
         
-        // LOGIN: Usamos apiLogin para verificar credenciales
         const usuarioEncontrado = await apiLogin(identificador, password);
         
         // Validaciones de Rol
-        if (modo === 'master') {
-            if (usuarioEncontrado.rol !== 'master') throw new Error("Esta cuenta no es de Director");
-        } else if (esProfesor) {
-            if (usuarioEncontrado.rol !== 'teacher') throw new Error("Esta cuenta no es de Profesor");
-        } else {
-            if (usuarioEncontrado.rol !== 'estudiante') throw new Error("Credenciales inválidas");
+        if (rol === 'master' && usuarioEncontrado.rol !== 'master') {
+            throw new Error("Esta cuenta no es de Director");
+        } else if (rol === 'teacher' && usuarioEncontrado.rol !== 'teacher') {
+            throw new Error("Esta cuenta no es de Profesor");
+        } else if (rol === 'estudiante' && usuarioEncontrado.rol !== 'estudiante') { 
+            throw new Error("Credenciales inválidas");
         }
 
         alAutenticar(usuarioEncontrado);
@@ -57,11 +57,12 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
           nombre: nombre.trim(),
           apellido: apellido.trim(),
           password,
-          edad: esProfesor ? null : Number(edad),
-          genero: esProfesor ? null : genero,
-          rol: esProfesor ? 'teacher' : 'estudiante',
-          email: esProfesor ? email : null,
-          cedula: esProfesor ? cedula : null,
+          edad: rol === 'estudiante' ? Number(edad) : null,
+          genero: rol === 'estudiante' ? genero : null,
+          rol: rol,
+          // EMAIL y CÉDULA solo se envían si es Profesor
+          email: rol === 'teacher' ? email : null, 
+          cedula: rol === 'teacher' ? cedula : null,
           codigoMaster: null
         };
 
@@ -78,7 +79,7 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
 
   // Estilos auxiliares
   const spacingStyle = { marginBottom: '15px', position: 'relative' };
-  const iconStyle = { position: 'absolute', top: '50%', transform: 'translateY(-50%)', left: '15px', zIndex: 2, color: '#888' };
+  const iconStyle = { position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', zIndex: 2, color: '#888' };
   const inputStyle = { 
     width: '100%', 
     padding: '12px 15px 12px 45px', 
@@ -91,11 +92,73 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
     transition: 'border-color 0.3s'
   };
 
+  const buttonStyle = {
+    padding: '8px 15px',
+    borderRadius: '10px',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    cursor: 'pointer',
+    border: '2px solid transparent',
+    transition: 'all 0.2s',
+  };
+
   // Color dinámico del botón
   const getButtonColor = () => {
-      if (modo === 'master') return '#FFD700'; // Dorado para Director
-      if (esProfesor) return '#0066FF'; // Azul para Profesor
-      return '#58cc02'; // Verde para Estudiante
+      if (modo === 'master') return '#FFD700';
+      if (esProfesor) return '#0066FF';
+      return '#58cc02'; 
+  };
+
+  // Seccion de Tabs: Se omite la pestaña "Director" si no es la vista de Profesor.
+  const renderTabs = () => {
+    // Si se accedió como profesor (esProfesor = true), debe ver todas las pestañas.
+    if (esProfesor) {
+      return (
+        <div className="auth-tabs" style={{ background: '#1a1a1a', padding: '5px', borderRadius: '15px', marginBottom: '25px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px' }}>
+          <button 
+              className={`auth-tab ${modo === 'login' ? 'activo' : ''}`} 
+              onClick={() => setModo('login')}
+              style={{ color: modo === 'login' ? 'white' : '#666' }}
+          >
+              Ingresar
+          </button>
+          <button 
+              className={`auth-tab ${modo === 'registro' ? 'activo' : ''}`} 
+              onClick={() => setModo('registro')}
+              style={{ color: modo === 'registro' ? 'white' : '#666' }}
+          >
+              Registrarse
+          </button>
+          <button 
+              className={`auth-tab ${modo === 'master' ? 'activo' : ''}`} 
+              onClick={() => setModo('master')}
+              style={{ color: modo === 'master' ? '#111' : '#888', background: modo === 'master' ? '#FFD700' : 'transparent', fontWeight: 'bold' }}
+          >
+              Director
+          </button>
+        </div>
+      );
+    }
+    
+    // Si es solo para Estudiantes (niños), solo muestra Ingresar y Registrarse
+    return (
+      <div className="auth-tabs" style={{ background: '#1a1a1a', padding: '5px', borderRadius: '15px', marginBottom: '25px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+        <button 
+            className={`auth-tab ${modo === 'login' ? 'activo' : ''}`} 
+            onClick={() => setModo('login')}
+            style={{ color: modo === 'login' ? 'white' : '#666' }}
+        >
+            Ingresar
+        </button>
+        <button 
+            className={`auth-tab ${modo === 'registro' ? 'activo' : ''}`} 
+            onClick={() => setModo('registro')}
+            style={{ color: modo === 'registro' ? 'white' : '#666' }}
+        >
+            Registrarse
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -133,30 +196,8 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
 
               {error && <div style={{background: 'rgba(255,75,75,0.15)', padding:'12px', borderRadius:'10px', color: '#ff4b4b', textAlign: 'center', marginBottom: '20px', fontSize: '13px', border: '1px solid rgba(255,75,75,0.3)'}}>{error}</div>}
 
-              {/* PESTAÑAS DE NAVEGACIÓN */}
-              <div className="auth-tabs" style={{ background: '#1a1a1a', padding: '5px', borderRadius: '15px', marginBottom: '25px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px' }}>
-                <button 
-                    className={`auth-tab ${modo === 'login' ? 'activo' : ''}`} 
-                    onClick={() => setModo('login')}
-                    style={{ color: modo === 'login' ? 'white' : '#666' }}
-                >
-                    Ingresar
-                </button>
-                <button 
-                    className={`auth-tab ${modo === 'registro' ? 'activo' : ''}`} 
-                    onClick={() => setModo('registro')}
-                    style={{ color: modo === 'registro' ? 'white' : '#666' }}
-                >
-                    Registrarse
-                </button>
-                <button 
-                    className={`auth-tab ${modo === 'master' ? 'activo' : ''}`} 
-                    onClick={() => setModo('master')}
-                    style={{ color: modo === 'master' ? '#111' : '#888', background: modo === 'master' ? '#FFD700' : 'transparent', fontWeight: 'bold' }}
-                >
-                    Director
-                </button>
-              </div>
+              {/* PESTAÑAS DE NAVEGACIÓN (Renderizadas condicionalmente) */}
+              {renderTabs()}
 
               <form className="auth-form" onSubmit={handleSubmit}>
                 
@@ -202,38 +243,87 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
                                     <User size={20} style={iconStyle}/>
                                     <input type="text" placeholder="Apellido" value={apellido} onChange={e => setApellido(e.target.value)} required style={inputStyle} />
                                 </div>
+                                
                                 {!esProfesor && (
-                                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', alignItems: 'center' }}>
                                         <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
                                             <input type="number" placeholder="Edad" value={edad} onChange={e => setEdad(e.target.value)} required min="5" style={{...inputStyle, paddingLeft: '15px'}} />
                                         </div>
-                                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-around', background: '#222', borderRadius: '12px', border: '1px solid #333' }}>
-                                            <label style={{cursor:'pointer', fontSize:'12px', color:'#aaa'}}><input type="radio" checked={genero==='niño'} onChange={()=>setGenero('niño')}/> 👦</label>
-                                            <label style={{cursor:'pointer', fontSize:'12px', color:'#aaa'}}><input type="radio" checked={genero==='niña'} onChange={()=>setGenero('niña')}/> 👧</label>
+                                        <div style={{ flex: 1, display: 'flex', gap: '5px' }}>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setGenero('niño')} 
+                                                style={{
+                                                    ...buttonStyle,
+                                                    flex: 1,
+                                                    background: genero === 'niño' ? '#1e90ff' : '#222',
+                                                    color: genero === 'niño' ? 'white' : '#888',
+                                                    borderColor: genero === 'niño' ? '#1e90ff' : '#333'
+                                                }}
+                                            >
+                                                Niño
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setGenero('niña')}
+                                                style={{
+                                                    ...buttonStyle,
+                                                    flex: 1,
+                                                    background: genero === 'niña' ? '#ff69b4' : '#222',
+                                                    color: genero === 'niña' ? 'white' : '#888',
+                                                    borderColor: genero === 'niña' ? '#ff69b4' : '#333'
+                                                }}
+                                            >
+                                                Niña
+                                            </button>
                                         </div>
                                     </div>
                                 )}
+                                
                                 {esProfesor && (
-                                    <div className="input-group" style={spacingStyle}>
-                                        <User size={20} style={iconStyle}/>
-                                        <input type="text" placeholder="Cédula" value={cedula} onChange={e => setCedula(e.target.value)} required style={inputStyle} />
-                                    </div>
+                                    <>
+                                        <div className="input-group" style={spacingStyle}>
+                                            <User size={20} style={iconStyle}/>
+                                            <input type="text" placeholder="Cédula" value={cedula} onChange={e => setCedula(e.target.value)} required style={inputStyle} />
+                                        </div>
+                                        <div className="input-group" style={spacingStyle}>
+                                            <User size={20} style={iconStyle}/>
+                                            <input type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)} required style={inputStyle} />
+                                        </div>
+                                    </>
                                 )}
                             </>
                         )}
 
-                        {/* CAMPOS COMUNES LOGIN/REGISTRO */}
-                        <div className="input-group" style={spacingStyle}>
-                            <User size={20} style={iconStyle}/>
-                            <input 
-                                type={modo === 'login' && !esProfesor ? "text" : "email"} 
-                                placeholder={modo === 'login' && !esProfesor ? "Usuario" : "Correo Electrónico"} 
-                                value={modo === 'login' && !esProfesor ? nombre : email} 
-                                onChange={e => (modo === 'login' && !esProfesor) ? setNombre(e.target.value) : setEmail(e.target.value)} 
-                                required 
-                                style={inputStyle}
-                            />
-                        </div>
+                        {/* --- CAMPO DE USUARIO (LOGIN DE ESTUDIANTES) Y EMAIL (LOGIN DE PROFESORES) --- */}
+                        {(!esProfesor && modo === 'login') && ( 
+                           <div className="input-group" style={spacingStyle}>
+                                <User size={20} style={iconStyle}/>
+                                <input 
+                                    type="text" 
+                                    placeholder="Usuario" // Texto corregido
+                                    value={nombre} 
+                                    onChange={e => setNombre(e.target.value)} 
+                                    required 
+                                    style={inputStyle}
+                                />
+                            </div>
+                        )}
+                        
+                        {(esProfesor && modo === 'login') && (
+                            <div className="input-group" style={spacingStyle}>
+                                <User size={20} style={iconStyle}/>
+                                <input 
+                                    type="text" 
+                                    placeholder="Correo Electrónico" 
+                                    value={email} 
+                                    onChange={e => setEmail(e.target.value)} 
+                                    required
+                                    style={inputStyle}
+                                />
+                            </div>
+                        )}
+
 
                         <div className="input-group" style={spacingStyle}>
                             <Lock size={20} style={iconStyle}/>

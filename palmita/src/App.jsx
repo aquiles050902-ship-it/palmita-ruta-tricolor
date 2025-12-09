@@ -69,13 +69,24 @@ function App() {
 
   // Lógica para actualizar el estado del mapa
   const actualizarMapa = (desafiosCompletados) => {
+    // IMPORTANTE: Asegurar que desafiosCompletados es un array antes de usarlo
+    if (!Array.isArray(desafiosCompletados)) {
+        desafiosCompletados = [];
+    }
+
     // Los IDs principales de nivel (1, 2, 3...) que tienen al menos un desafío completado
-    const nivelesConProgreso = new Set(desafiosCompletados.map(id => parseInt(id.split('-')[0])));
+    const nivelesConProgreso = new Set(
+        desafiosCompletados
+            .filter(id => typeof id === 'string' && id.includes('-')) // FILTRO DE SEGURIDAD
+            .map(id => parseInt(id.split('-')[0]))
+    );
     
     // Contar cuántos desafíos hay por cada nivel
-    const conteoDesafios = desafíosCompletados.reduce((acc, id) => {
-        const nivel = parseInt(id.split('-')[0]);
-        acc[nivel] = (acc[nivel] || 0) + 1;
+    const conteoDesafios = desafiosCompletados.reduce((acc, id) => {
+        if (typeof id === 'string' && id.includes('-')) {
+            const nivel = parseInt(id.split('-')[0]);
+            acc[nivel] = (acc[nivel] || 0) + 1;
+        }
         return acc;
     }, {});
 
@@ -100,7 +111,7 @@ function App() {
         if (n.id > maxProgreso + 1) return { ...n, estado: 'bloqueado' };
         
         // Nivel 1 siempre es 'actual' si no hay progreso.
-        if (n.id === 1 && desafíosCompletados.length === 0) return { ...n, estado: 'actual' };
+        if (n.id === 1 && desafiosCompletados.length === 0) return { ...n, estado: 'actual' };
 
         return n; 
     });
@@ -108,20 +119,26 @@ function App() {
   };
 
   const handleLoginExitoso = (datosUsuario) => {
+    // --- CORRECCIÓN CLAVE: Limpiar progresoNiveles para evitar el error 'split' ---
+    // Nos aseguramos que sea un array y filtramos SOLO strings válidos con guión.
+    let rawProgreso = datosUsuario.progresoNiveles;
+    if (!Array.isArray(rawProgreso)) rawProgreso = [];
+
+    const desafiosCompletados = rawProgreso
+      .filter(item => typeof item === 'string' && item.includes('-')); 
+
     const usuarioConInventario = {
         ...datosUsuario,
         inventarioGafas: datosUsuario.inventarioGafas || [0, 1], 
         inventarioSombreros: datosUsuario.inventarioSombreros || [0], 
         nivelCrecimiento: datosUsuario.nivelCrecimiento || 0,
-        // PROGRESO MODIFICADO: Ahora contiene IDs de desafío (ej: ["1-1", "1-2", "2-1"])
-        progresoNiveles: datosUsuario.progresoNiveles || [] 
+        // Usamos la lista de IDs de desafíos limpios
+        progresoNiveles: desafiosCompletados 
     };
     setUsuario(usuarioConInventario); 
     
-    // Restaurar progreso del mapa con la nueva lógica
-    if (usuarioConInventario.progresoNiveles) {
-        actualizarMapa(usuarioConInventario.progresoNiveles);
-    }
+    // Restaurar progreso del mapa con la lista limpia
+    actualizarMapa(desafiosCompletados);
     
     setMostrarLogin(false);
     setMostrarLoginProfe(false);
@@ -135,7 +152,6 @@ function App() {
 
   const actualizarUsuarioGlobal = (nuevoUsuario) => {
     setUsuario(nuevoUsuario);
-    // IMPORTANTE: Aquí se guarda el campo progresoNiveles (que ahora tiene IDs de desafío)
     if (nuevoUsuario.id) apiGuardar(nuevoUsuario).catch(err => console.error("Error guardando:", err));
   };
 
@@ -148,7 +164,11 @@ function App() {
         const nuevoProgreso = [...progresoActual, desafioId];
         
         // Calculamos los niveles principales que tienen al menos 1 desafío completado
-        const nivelesConProgreso = new Set(nuevoProgreso.map(id => parseInt(id.split('-')[0])));
+        const nivelesConProgreso = new Set(
+            nuevoProgreso
+                .filter(id => typeof id === 'string' && id.includes('-'))
+                .map(id => parseInt(id.split('-')[0]))
+        );
 
         const usuarioActualizado = { 
             ...usuario, 
@@ -178,7 +198,8 @@ function App() {
   // Mapeo auxiliar para saber el estado de un nivel (0-5 completados)
   const getLevelProgress = (nivelId) => {
     const desafiosCompletados = usuario?.progresoNiveles || [];
-    return desafiosCompletados.filter(id => id.startsWith(`${nivelId}-`)).length;
+    if (!Array.isArray(desafiosCompletados)) return 0;
+    return desafiosCompletados.filter(id => typeof id === 'string' && id.startsWith(`${nivelId}-`)).length;
   };
   
   return (
@@ -252,6 +273,7 @@ function App() {
               setVistaActual('mapa'); 
             }} 
             alPerder={manejarDerrota}
+            // PASO CRÍTICO: Pasamos la prop correctamente
             desafiosCompletados={usuario?.progresoNiveles || []} 
         />}
         
