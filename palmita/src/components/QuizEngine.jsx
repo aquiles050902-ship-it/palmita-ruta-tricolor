@@ -33,45 +33,19 @@ const QUESTIONS_DB = {
 
 // === LISTA DE 40 FRASES MOTIVADORAS ===
 const FRASES_MOTIVADORAS = [
-  "¡Casi lo tienes, inténtalo de nuevo! 🚀",
-  "¡No te rindas, tú puedes! 💪",
-  "¡Los errores nos ayudan a aprender! 🧠",
-  "¡Sigue adelante, vas muy bien! 🌟",
-  "¡Un intento más y lo lograrás! 🔥",
-  "¡Confía en ti, eres genial! 🌈",
-  "¡Aprender es un superpoder! ⚡",
-  "¡Respira y prueba otra vez! 🍃",
-  "¡El esfuerzo tiene recompensa! 🏆",
-  "¡Eres más inteligente de lo que crees! 🤓",
-  "¡Cada error es un paso hacia el éxito! 👣",
-  "¡Lo estás haciendo genial, sigue así! 🎈",
-  "¡No pasa nada, vuelve a probar! 👍",
-  "¡Tú eres capaz de cosas increíbles! ✨",
-  "¡La práctica hace al maestro! 🎻",
-  "¡Eres un campeón/campeona en proceso! 🏅",
-  "¡Sigue intentando, estás muy cerca! 🎯",
-  "¡Tu cerebro está creciendo! 🌱",
-  "¡No dejes que un fallo te detenga! 🛑",
-  "¡Eres valiente por intentarlo! 🦁",
-  "¡Aprender es divertido, sigue jugando! 🎮",
-  "¡Hoy es un buen día para aprender algo nuevo! ☀️",
-  "¡Eres una estrella brillante! ⭐",
-  "¡Cree en ti mismo y volarás alto! 🦋",
-  "¡Persiste y triunfarás! 🏔️",
-  "¡Tus ideas son importantes! 💡",
-  "¡Eres único y especial! 🦄",
-  "¡El éxito es la suma de pequeños esfuerzos! 🧱",
-  "¡Nunca dejes de soñar y aprender! 🌙",
-  "¡Eres fuerte, eres listo/a, eres importante! ❤️",
-  "¡Vamos, tú puedes resolverlo! 🧩",
-  "¡Mira qué lejos has llegado! 🔭",
-  "¡Sigue tu curiosidad! 🔍",
-  "¡Eres un explorador del conocimiento! 🗺️",
-  "¡Inténtalo una vez más con fuerza! 💥",
-  "¡No hay problema sin solución! 🗝️",
-  "¡Eres un genio en potencia! 🧞",
-  "¡Sigue brillando, no te apagues! 🕯️",
-  "¡El camino al éxito está lleno de intentos! 🛤️",
+  "¡Casi lo tienes, inténtalo de nuevo! 🚀", "¡No te rindas, tú puedes! 💪", "¡Los errores nos ayudan a aprender! 🧠",
+  "¡Sigue adelante, vas muy bien! 🌟", "¡Un intento más y lo lograrás! 🔥", "¡Confía en ti, eres genial! 🌈",
+  "¡Aprender es un superpoder! ⚡", "¡Respira y prueba otra vez! 🍃", "¡El esfuerzo tiene recompensa! 🏆",
+  "¡Eres más inteligente de lo que crees! 🤓", "¡Cada error es un paso hacia el éxito! 👣", "¡Lo estás haciendo genial, sigue así! 🎈",
+  "¡No pasa nada, vuelve a probar! 👍", "¡Tú eres capaz de cosas increíbles! ✨", "¡La práctica hace al maestro! 🎻",
+  "¡Eres un campeón/campeona en proceso! 🏅", "¡Sigue intentando, estás muy cerca! 🎯", "¡Tu cerebro está creciendo! 🌱",
+  "¡No dejes que un fallo te detenga! 🛑", "¡Eres valiente por intentarlo! 🦁", "¡Aprender es divertido, sigue jugando! 🎮",
+  "¡Hoy es un buen día para aprender algo nuevo! ☀️", "¡Eres una estrella brillante! ⭐", "¡Cree en ti mismo y volarás alto! 🦋",
+  "¡Persiste y triunfarás! 🏔️", "¡Tus ideas son importantes! 💡", "¡Eres único y especial! 🦄",
+  "¡El éxito es la suma de pequeños esfuerzos! 🧱", "¡Nunca dejes de soñar y aprender! 🌙", "¡Eres fuerte, eres listo/a, eres importante! ❤️",
+  "¡Vamos, tú puedes resolverlo! 🧩", "¡Mira qué lejos has llegado! 🔭", "¡Sigue tu curiosidad! 🔍",
+  "¡Eres un explorador del conocimiento! 🗺️", "¡Inténtalo una vez más con fuerza! 💥", "¡No hay problema sin solución! 🗝️",
+  "¡Eres un genio en potencia! 🧞", "¡Sigue brillando, no te apagues! 🕯️", "¡El camino al éxito está lleno de intentos! 🛤️",
   "¡Lo importante es no dejar de intentar! 🔄"
 ];
 
@@ -79,6 +53,9 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
   const [preguntaActual, setPreguntaActual] = useState(null);
   const [quizIdActual, setQuizIdActual] = useState(null); 
   const [fraseMotivacional, setFraseMotivacional] = useState(""); 
+  
+  // NUEVO: Métricas de la sesión actual
+  const [metricas, setMetricas] = useState({ aciertos: 0, fallos: 0 });
   
   const seleccionarNuevoQuiz = (targetNivelId, completados) => {
     const pool = QUESTIONS_DB[targetNivelId] || QUESTIONS_DB[1];
@@ -108,6 +85,7 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
     setSeleccion(null);
     setEstado("pendiente");
     setVidas(3);
+    setMetricas({ aciertos: 0, fallos: 0 }); // Reiniciar métricas
   }, [nivelId, desafiosCompletados.length]);
 
   const [seleccion, setSeleccion] = useState(null);
@@ -125,17 +103,19 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
     if (seleccion === preguntaActual.correcta) {
       setEstado("correcto");
       audio.playSfx('success');
+      // Registrar Acierto
+      setMetricas(prev => ({ ...prev, aciertos: prev.aciertos + 1 }));
     } else {
       const nuevasVidas = vidas - 1;
       setVidas(nuevasVidas);
       audio.playSfx('error');
       
+      // Registrar Fallo
+      setMetricas(prev => ({ ...prev, fallos: prev.fallos + 1 }));
       generarFrase(); 
 
       if (nuevasVidas > 0) {
-        setEstado("error_intento"); // Activa el POPUP
-        
-        // --- MANTIENE LOS 5 SEGUNDOS (5000ms) ---
+        setEstado("error_intento"); 
         setTimeout(() => {
             setEstado("pendiente");
             setSeleccion(null); 
@@ -147,15 +127,18 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
   };
 
   const handleReintentar = () => {
-      if (alPerder) alPerder();
+      // Al reintentar, enviamos lo que pasó antes de resetear
+      if (alPerder) alPerder(metricas);
       seleccionarNuevoQuiz(nivelId, desafiosCompletados); 
       setVidas(3);
       setEstado("pendiente");
       setSeleccion(null);
+      setMetricas({ aciertos: 0, fallos: 0 });
   };
 
   const avanzar = () => {
-    alCompletar(quizIdActual);
+    // Al ganar, enviamos las métricas
+    alCompletar(quizIdActual, metricas);
   };
 
   if (!preguntaActual) return <div className="quiz-container" style={{display:'flex',justifyContent:'center',alignItems:'center',color:'white'}}>Cargando...</div>;

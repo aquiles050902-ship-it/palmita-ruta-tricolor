@@ -1,18 +1,18 @@
-import { LogOut, Users, TrendingUp, RefreshCw, Search, Trash2, AlertTriangle } from "lucide-react";
+import { LogOut, Users, TrendingUp, RefreshCw, Search, Trash2, AlertTriangle, FileText, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion"; 
 import PalmitaMascot from "./PalmitaMascot"; 
-import { apiObtenerEstudiantes, apiEliminarEstudiante } from "../services/api"; // Importación CLAVE
+import { apiObtenerEstudiantes, apiEliminarEstudiante } from "../services/api";
 
 export default function TeacherDashboard({ alSalir }) {
   const [alumnos, setAlumnos] = useState([]);
   const [alumnoAEliminar, setAlumnoAEliminar] = useState(null);
+  const [alumnoReporte, setAlumnoReporte] = useState(null); // Estado para el reporte
   const [cargando, setCargando] = useState(false);
 
   const cargarDatos = async () => {
     setCargando(true);
     try {
-        // 1. Pedimos datos a la base de datos real
         const datosReales = await apiObtenerEstudiantes();
         
         const listaFormateada = datosReales.map(u => ({
@@ -22,7 +22,8 @@ export default function TeacherDashboard({ alSalir }) {
             nivel: u.nivelMax || 0,
             racha: u.racha || 0,
             gemas: u.gemas || 0,
-            estado: (u.progresoNiveles && u.progresoNiveles.length > 0) ? 'activo' : 'nuevo'
+            estado: (u.progresoNiveles && u.progresoNiveles.length > 0) ? 'activo' : 'nuevo',
+            estadisticas: u.estadisticas || {} // Datos importantes
         }));
         
         setAlumnos(listaFormateada);
@@ -31,10 +32,6 @@ export default function TeacherDashboard({ alSalir }) {
     } finally {
         setCargando(false);
     }
-  };
-
-  const pedirConfirmacion = (alumno) => {
-    setAlumnoAEliminar(alumno);
   };
 
   const confirmarEliminacion = async () => {
@@ -48,11 +45,23 @@ export default function TeacherDashboard({ alSalir }) {
     setAlumnoAEliminar(null);
   };
 
-  const cancelarEliminacion = () => {
-    setAlumnoAEliminar(null);
-  };
-
   useEffect(() => { cargarDatos(); }, []);
+
+  // Función para calcular en qué nivel falló más
+  const obtenerDebilidad = (stats) => {
+    let peorNivel = null;
+    let maxFallos = -1;
+    
+    if (!stats) return "Ninguna";
+
+    Object.keys(stats).forEach(nivel => {
+        if (stats[nivel].fallos > maxFallos) {
+            maxFallos = stats[nivel].fallos;
+            peorNivel = nivel;
+        }
+    });
+    return peorNivel ? `Nivel ${peorNivel}` : "Ninguna";
+  };
 
   return (
     <div className="dashboard-profesor">
@@ -106,41 +115,51 @@ export default function TeacherDashboard({ alSalir }) {
                 <tr>
                 <th style={{textAlign: 'center', width: '50px'}}>#</th>
                 <th>Estudiante</th>
-                <th>Nivel Actual</th>
-                <th>Racha</th>
-                <th>Gemas</th>
+                <th>Nivel</th>
+                <th>Debilidad</th> {/* Nueva Columna */}
                 <th>Estado</th>
                 <th style={{textAlign: 'center'}}>Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {alumnos.length === 0 ? (
-                    <tr><td colSpan="7" className="tabla-vacia">
-                        {cargando ? "Cargando..." : "No hay alumnos registrados en la base de datos."}
-                    </td></tr>
+                    <tr><td colSpan="6" className="tabla-vacia">No hay alumnos registrados.</td></tr>
                 ) : (
                     alumnos.map((a, index) => (
                     <tr key={a.id}>
-                        {/* AQUI ESTÁ LA CORRECCIÓN NUMÉRICA (index + 1) */}
                         <td style={{textAlign: 'center', fontWeight: 'bold', color: '#888'}}>{index + 1}</td>
                         <td className="celda-nombre">
                             <div className="avatar-mini">{a.nombre.charAt(0).toUpperCase()}</div>
-                            <div>
-                                <strong>{a.nombre} {a.apellido}</strong>
-                            </div>
+                            <div><strong>{a.nombre} {a.apellido}</strong></div>
                         </td>
                         <td><div className="badge-nivel">Nivel {a.nivel}</div></td>
-                        <td>🔥 {a.racha}</td>
-                        <td className="texto-gemas">💎 {a.gemas}</td>
+                        
+                        {/* Dato de Debilidad */}
+                        <td style={{color: '#ff4b4b', fontWeight:'bold'}}>
+                            {obtenerDebilidad(a.estadisticas)}
+                        </td>
+
                         <td>
                             <span className={`badge-estado ${a.estado}`}>
                                 {a.estado === 'activo' ? '🟢 Activo' : '⚪ Nuevo'}
                             </span>
                         </td>
-                        <td style={{textAlign: 'center'}}>
+                        
+                        <td style={{textAlign: 'center', display:'flex', justifyContent:'center', gap:'10px'}}>
+                            {/* BOTÓN REPORTE (AZUL) */}
                             <button 
                                 className="btn-eliminar" 
-                                onClick={() => pedirConfirmacion(a)} 
+                                style={{background:'#0066FF22', color:'#0066FF', borderColor:'#0066FF55'}} 
+                                onClick={() => setAlumnoReporte(a)} 
+                                title="Ver Reporte Completo"
+                            >
+                                <FileText size={18} />
+                            </button>
+
+                            {/* BOTÓN ELIMINAR (ROJO) */}
+                            <button 
+                                className="btn-eliminar" 
+                                onClick={() => setAlumnoAEliminar(a)} 
                                 title="Eliminar Estudiante"
                             >
                                 <Trash2 size={18} />
@@ -154,56 +173,96 @@ export default function TeacherDashboard({ alSalir }) {
         </div>
       </div>
 
+      {/* MODAL DE REPORTE DETALLADO */}
       <AnimatePresence>
-        {alumnoAEliminar && (
+        {alumnoReporte && (
           <div className="auth-overlay" style={{zIndex: 3000}}>
             <motion.div 
-              className="auth-card"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              style={{ maxWidth: '400px', textAlign: 'center', border: '2px solid #ff4b4b' }}
+                className="auth-card" 
+                initial={{scale:0.9, opacity:0}} 
+                animate={{scale:1, opacity:1}} 
+                exit={{scale:0.9, opacity:0}} 
+                style={{maxWidth:'600px', width:'90%'}}
             >
-              <div style={{ 
-                  background: 'rgba(255, 75, 75, 0.1)', 
-                  width: '60px', height: '60px', borderRadius: '50%', 
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                  margin: '0 auto 20px auto'
-              }}>
-                <AlertTriangle size={32} color="#ff4b4b" />
-              </div>
+              <button className="btn-cerrar-modal" onClick={() => setAlumnoReporte(null)} style={{color:'white'}}>×</button>
               
-              <h3 style={{ color: 'white', marginBottom: '10px', fontSize: '22px' }}>¿Estás seguro?</h3>
-              <p style={{ color: '#ccc', marginBottom: '30px' }}>
-                Vas a eliminar a <strong>{alumnoAEliminar.nombre}</strong> de la base de datos permanentemente.
-              </p>
+              <div style={{textAlign:'center', marginBottom:'20px'}}>
+                <h2 style={{color:'white', margin:0}}>Reporte Académico</h2>
+                <p style={{color:'#aaa', margin:0}}>
+                    Estudiante: <strong style={{color:'#FFD700'}}>{alumnoReporte.nombre} {alumnoReporte.apellido}</strong>
+                </p>
+              </div>
 
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                <button 
-                    onClick={cancelarEliminacion}
-                    style={{
-                        padding: '12px 20px', borderRadius: '12px', border: 'none',
-                        background: '#333', color: 'white', cursor: 'pointer', fontWeight: 'bold'
-                    }}
-                >
-                    Cancelar
-                </button>
-                <button 
-                    onClick={confirmarEliminacion}
-                    style={{
-                        padding: '12px 20px', borderRadius: '12px', border: 'none',
-                        background: '#ff4b4b', color: 'white', cursor: 'pointer', fontWeight: 'bold',
-                        boxShadow: '0 4px 10px rgba(255, 75, 75, 0.3)'
-                    }}
-                >
-                    Sí, Eliminar
-                </button>
+              <div style={{maxHeight:'300px', overflowY:'auto'}}>
+                <table className="tabla-moderna" style={{width:'100%'}}>
+                    <thead style={{position:'sticky', top:0, background:'#111'}}>
+                        <tr>
+                            <th style={{color:'#00C2CB'}}>Nivel</th>
+                            <th style={{color:'#58cc02'}}>Aciertos ✅</th>
+                            <th style={{color:'#ff4b4b'}}>Fallos ❌</th>
+                            <th>Desempeño</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {Object.keys(alumnoReporte.estadisticas).length === 0 ? (
+                            <tr><td colSpan="4" style={{textAlign:'center', padding:'20px', color:'#666'}}>
+                                Sin datos registrados aún.
+                            </td></tr>
+                        ) : (
+                            Object.entries(alumnoReporte.estadisticas).map(([nivel, datos]) => {
+                                const total = datos.aciertos + datos.fallos;
+                                const efectividad = total > 0 ? Math.round((datos.aciertos / total) * 100) : 0;
+                                return (
+                                    <tr key={nivel}>
+                                        <td style={{fontWeight:'bold'}}>Nivel {nivel}</td>
+                                        <td style={{color:'#58cc02', fontWeight:'bold'}}>{datos.aciertos}</td>
+                                        <td style={{color:'#ff4b4b', fontWeight:'bold'}}>{datos.fallos}</td>
+                                        <td>
+                                            <div style={{width:'100%', background:'#333', height:'6px', borderRadius:'3px', overflow:'hidden'}}>
+                                                <div style={{
+                                                    width:`${efectividad}%`, 
+                                                    background: efectividad > 70 ? '#58cc02' : (efectividad > 40 ? '#FFD700' : '#ff4b4b'), 
+                                                    height:'100%'
+                                                }}></div>
+                                            </div>
+                                            <small style={{fontSize:'10px', color:'#aaa'}}>{efectividad}% Efic.</small>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
+                    </tbody>
+                </table>
+              </div>
+
+              <div style={{background:'#222', padding:'15px', borderRadius:'10px', marginTop:'20px', borderLeft:'4px solid #0066FF'}}>
+                  <h4 style={{margin:'0 0 5px 0', color:'#0066FF'}}>Diagnóstico Docente:</h4>
+                  <p style={{margin:0, fontSize:'13px', color:'#ddd'}}>
+                     {Object.keys(alumnoReporte.estadisticas).length === 0 
+                        ? "El estudiante aún no ha completado actividades suficientes para un diagnóstico."
+                        : `El estudiante presenta mayor dificultad en: ${obtenerDebilidad(alumnoReporte.estadisticas)}. Se sugiere reforzar conceptos básicos de este tema.`
+                     }
+                  </p>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {alumnoAEliminar && (
+           <div className="auth-overlay" style={{zIndex: 3000}}>
+             <motion.div className="auth-card" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ maxWidth: '400px', textAlign: 'center', border: '2px solid #ff4b4b' }}>
+               <AlertTriangle size={40} color="#ff4b4b" style={{margin:'0 auto 10px'}}/>
+               <h3 style={{color:'white'}}>¿Eliminar estudiante?</h3>
+               <div style={{display:'flex', gap:'10px', justifyContent:'center', marginTop:'20px'}}>
+                 <button onClick={() => setAlumnoAEliminar(null)} style={{background:'#333', color:'white', border:'none', padding:'10px 20px', borderRadius:'10px', cursor:'pointer'}}>Cancelar</button>
+                 <button onClick={confirmarEliminacion} style={{background:'#ff4b4b', color:'white', border:'none', padding:'10px 20px', borderRadius:'10px', cursor:'pointer'}}>Eliminar</button>
+               </div>
+             </motion.div>
+           </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

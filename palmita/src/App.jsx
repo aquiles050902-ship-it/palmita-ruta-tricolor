@@ -26,7 +26,6 @@ function App() {
   const [usuario, setUsuario] = useState(null); 
   const [nivelSeleccionado, setNivelSeleccionado] = useState(null);
 
-  // --- LISTA DE 20 NIVELES PARA EL MAPA ---
   const [niveles, setNiveles] = useState([
     { id: 1, nombre: 'La Receta', estado: 'actual' },
     { id: 2, nombre: 'El Laberinto', estado: 'bloqueado' },
@@ -67,47 +66,33 @@ function App() {
 
   const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
 
-  // Lógica para actualizar el estado del mapa
   const actualizarMapa = (listaDesafios) => {
-    // Si la lista es null o no es un array, usamos array vacío para evitar errores
     const desafiosSeguros = Array.isArray(listaDesafios) ? listaDesafios : [];
-
-    // Filtramos SOLO los datos que sean texto y tengan guión (ej: "1-1").
-    // Esto ELIMINA el error "id.split is not a function" si hay números sueltos.
     const desafiosValidos = desafiosSeguros.filter(id => typeof id === 'string' && id.includes('-'));
 
     const nivelesConProgreso = new Set(
         desafiosValidos.map(id => parseInt(id.split('-')[0]))
     );
     
-    // Contar cuántos desafíos hay por cada nivel
     const conteoDesafios = desafiosValidos.reduce((acc, id) => {
         const nivel = parseInt(id.split('-')[0]);
         acc[nivel] = (acc[nivel] || 0) + 1;
         return acc;
     }, {});
 
-    // Determinar el nivel más alto que tiene *al menos* un desafío completado
     const maxProgreso = niveles.reduce((maxId, n) => {
         return nivelesConProgreso.has(n.id) ? Math.max(maxId, n.id) : maxId;
     }, 0);
 
     const mapaActualizado = niveles.map(n => {
-        // 1. Un nivel está 'completado' si tiene 5 desafíos completados.
         if (conteoDesafios[n.id] >= 5) return { ...n, estado: 'completado' };
-        
-        // 2. Un nivel está 'actual' si tiene progreso (1-4 desafíos) O si es el siguiente desbloqueable.
         const tieneProgreso = conteoDesafios[n.id] > 0;
         const esSiguienteDesbloqueado = n.id === maxProgreso + 1;
         
         if (tieneProgreso || esSiguienteDesbloqueado) {
              if (n.id <= 20) return { ...n, estado: 'actual' };
         }
-        
-        // 3. Bloqueado si su ID es mayor al siguiente desbloqueado.
         if (n.id > maxProgreso + 1) return { ...n, estado: 'bloqueado' };
-        
-        // Nivel 1 siempre es 'actual' si no hay progreso.
         if (n.id === 1 && desafiosValidos.length === 0) return { ...n, estado: 'actual' };
 
         return n; 
@@ -116,14 +101,8 @@ function App() {
   };
 
   const handleLoginExitoso = (datosUsuario) => {
-    // --- LIMPIEZA DE DATOS CRÍTICA ---
     let rawProgreso = datosUsuario.progresoNiveles;
-    
-    // Si no es un array, lo convertimos en uno vacío
     if (!Array.isArray(rawProgreso)) rawProgreso = [];
-
-    // Limpiamos los datos: solo strings con guión (ej: "1-1")
-    // Aquí definimos 'desafiosCompletados' SIN acento
     const desafiosCompletados = rawProgreso.filter(item => typeof item === 'string' && item.includes('-')); 
 
     const usuarioConInventario = {
@@ -131,11 +110,11 @@ function App() {
         inventarioGafas: datosUsuario.inventarioGafas || [0, 1], 
         inventarioSombreros: datosUsuario.inventarioSombreros || [0], 
         nivelCrecimiento: datosUsuario.nivelCrecimiento || 0,
-        progresoNiveles: desafiosCompletados 
+        progresoNiveles: desafiosCompletados,
+        estadisticas: datosUsuario.estadisticas || {}
     };
     setUsuario(usuarioConInventario); 
     
-    // Solo actualizamos el mapa si es estudiante
     if (datosUsuario.rol === 'estudiante') {
         actualizarMapa(desafiosCompletados);
     }
@@ -155,45 +134,79 @@ function App() {
     if (nuevoUsuario.id) apiGuardar(nuevoUsuario).catch(err => console.error("Error guardando:", err));
   };
 
-  const guardarProgresoNivel = (desafioId) => {
+  // --- FUNCIÓN CORREGIDA Y SEGURA PARA GUARDAR MÉTRICAS ---
+  const guardarProgresoNivel = (desafioId, metricasPartida) => {
     if (!usuario) return;
     const progresoActual = usuario.progresoNiveles || [];
     
-    if (!progresoActual.includes(desafioId)) {
-        const nuevoProgreso = [...progresoActual, desafioId];
-        
-        // Filtro de seguridad
-        const progresoValido = nuevoProgreso.filter(id => typeof id === 'string' && id.includes('-'));
-
-        const nivelesConProgreso = new Set(
-            progresoValido.map(id => parseInt(id.split('-')[0]))
-        );
-
-        const usuarioActualizado = { 
-            ...usuario, 
-            progresoNiveles: nuevoProgreso, 
-            racha: (usuario.racha || 0) + 1, 
-            gemas: (usuario.gemas || 0) + 50,
-            nivelMax: nivelesConProgreso.size
-        };
-        
-        actualizarUsuarioGlobal(usuarioActualizado);
-        actualizarMapa(nuevoProgreso); 
+    // 1. CLONAR ESTADÍSTICAS (Evita error de read-only)
+    let estadisticasClonadas = {};
+    try {
+        estadisticasClonadas = JSON.parse(JSON.stringify(usuario.estadisticas || {}));
+    } catch (e) {
+        estadisticasClonadas = {};
     }
+
+    const nivelId = String(desafioId).split('-')[0];
+    
+    if (!estadisticasClonadas[nivelId]) {
+        estadisticasClonadas[nivelId] = { aciertos: 0, fallos: 0 };
+    }
+    estadisticasClonadas[nivelId].aciertos += (metricasPartida?.aciertos || 0);
+    estadisticasClonadas[nivelId].fallos += (metricasPartida?.fallos || 0);
+    
+    let nuevoProgreso = [...progresoActual];
+    if (!progresoActual.includes(desafioId)) {
+        nuevoProgreso.push(desafioId);
+    }
+    const progresoValido = nuevoProgreso.filter(id => typeof id === 'string' && id.includes('-'));
+    const nivelesConProgreso = new Set(progresoValido.map(id => parseInt(id.split('-')[0])));
+
+    const usuarioActualizado = { 
+        ...usuario, 
+        progresoNiveles: nuevoProgreso,
+        estadisticas: estadisticasClonadas, // Usamos la copia segura
+        racha: (usuario.racha || 0) + 1, 
+        gemas: (usuario.gemas || 0) + 50,
+        nivelMax: nivelesConProgreso.size
+    };
+    
+    actualizarUsuarioGlobal(usuarioActualizado);
+    actualizarMapa(nuevoProgreso); 
   };
 
-  const manejarDerrota = () => {
+  // --- FUNCIÓN CORREGIDA Y SEGURA PARA DERROTA ---
+  const manejarDerrota = (metricasPartida) => {
     if (!usuario) return;
-    const nuevaRacha = Math.max(0, (usuario.racha || 0) - 1);
-    const nuevasGemas = Math.max(0, (usuario.gemas || 0) - 20);
-    const usuarioCastigado = { ...usuario, racha: nuevaRacha, gemas: nuevasGemas };
-    actualizarUsuarioGlobal(usuarioCastigado);
+    
+    // 1. CLONAR ESTADÍSTICAS
+    let estadisticasClonadas = {};
+    try {
+        estadisticasClonadas = JSON.parse(JSON.stringify(usuario.estadisticas || {}));
+    } catch (e) {
+        estadisticasClonadas = {};
+    }
+
+    const nivelId = nivelSeleccionado;
+    
+    if (nivelId) {
+        if (!estadisticasClonadas[nivelId]) estadisticasClonadas[nivelId] = { aciertos: 0, fallos: 0 };
+        estadisticasClonadas[nivelId].fallos += (metricasPartida?.fallos || 0);
+        estadisticasClonadas[nivelId].aciertos += (metricasPartida?.aciertos || 0);
+    }
+
+    const nuevoUsuario = { 
+        ...usuario, 
+        estadisticas: estadisticasClonadas,
+        racha: Math.max(0, (usuario.racha || 0) - 1), 
+        gemas: Math.max(0, (usuario.gemas || 0) - 20) 
+    };
+    actualizarUsuarioGlobal(nuevoUsuario);
   };
 
   const mostrarNavegacion = vistaActual !== 'bienvenida' && vistaActual !== 'dashboard_profe' && vistaActual !== 'dashboard_master' && vistaActual !== 'quiz';
   const mostrarToggleFlotante = ['bienvenida', 'dashboard_profe', 'dashboard_master'].includes(vistaActual);
 
-  // Mapeo auxiliar
   const getLevelProgress = (nivelId) => {
     const lista = usuario?.progresoNiveles || [];
     if (!Array.isArray(lista)) return 0;
@@ -265,12 +278,11 @@ function App() {
         {vistaActual === 'quiz' && <QuizEngine 
             nivelId={nivelSeleccionado} 
             alCerrar={() => setVistaActual('mapa')} 
-            alCompletar={(desafioId) => { 
-              guardarProgresoNivel(desafioId); 
+            alCompletar={(desafioId, metricas) => { // Recibe métricas
+              guardarProgresoNivel(desafioId, metricas); 
               setVistaActual('mapa'); 
             }} 
-            alPerder={manejarDerrota}
-            // PASAMOS LA VARIABLE CORRECTA SIN ACENTOS
+            alPerder={(metricas) => manejarDerrota(metricas)} // Recibe métricas
             desafiosCompletados={usuario?.progresoNiveles || []} 
         />}
         
