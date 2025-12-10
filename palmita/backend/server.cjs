@@ -39,7 +39,7 @@ app.post('/api/registro', (req, res) => {
     const progresoNiveles = []; 
     const inventarioGafas = [0, 1];
     const inventarioSombreros = [0];
-    const estadisticas = {}; // NUEVO: Objeto vacío para estadísticas
+    const estadisticas = {}; 
 
     const sql = `INSERT INTO usuarios 
     (nombre, apellido, password, edad, genero, rol, email, cedula, gemas, 
@@ -52,7 +52,7 @@ app.post('/api/registro', (req, res) => {
         JSON.stringify(progresoNiveles), 
         JSON.stringify(inventarioGafas), 
         JSON.stringify(inventarioSombreros),
-        JSON.stringify(estadisticas) // NUEVO
+        JSON.stringify(estadisticas)
     ];
 
     db.query(sql, valores, (err, result) => {
@@ -74,7 +74,7 @@ app.post('/api/login', (req, res) => {
                 user.progresoNiveles = JSON.parse(user.progresoNiveles || '[]'); 
                 user.inventarioGafas = JSON.parse(user.inventarioGafas || '[0,1]');
                 user.inventarioSombreros = JSON.parse(user.inventarioSombreros || '[0]');
-                user.estadisticas = JSON.parse(user.estadisticas || '{}'); // NUEVO
+                user.estadisticas = JSON.parse(user.estadisticas || '{}');
                 
                 if (!Array.isArray(user.progresoNiveles)) user.progresoNiveles = [];
             } catch (e) {
@@ -92,7 +92,6 @@ app.post('/api/login', (req, res) => {
 
 // --- RUTA 3: GUARDAR PROGRESO ---
 app.post('/api/guardar', (req, res) => {
-    // NUEVO: Agregamos estadisticas al destructuring
     const { id, gemas, racha, nivelCrecimiento, gafasId, sombreroId, progresoNiveles, inventarioGafas, inventarioSombreros, estadisticas } = req.body;
 
     const sql = `UPDATE usuarios SET 
@@ -105,7 +104,7 @@ app.post('/api/guardar', (req, res) => {
         JSON.stringify(progresoNiveles), 
         JSON.stringify(inventarioGafas), 
         JSON.stringify(inventarioSombreros),
-        JSON.stringify(estadisticas || {}), // NUEVO
+        JSON.stringify(estadisticas || {}),
         id
     ];
 
@@ -122,10 +121,10 @@ app.get('/api/estudiantes', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         const estudiantes = results.map(user => {
             let niveles = [];
-            let stats = {}; // NUEVO
+            let stats = {};
             try {
                 niveles = JSON.parse(user.progresoNiveles || '[]');
-                stats = JSON.parse(user.estadisticas || '{}'); // NUEVO
+                stats = JSON.parse(user.estadisticas || '{}');
                 if (!Array.isArray(niveles)) niveles = []; 
                 if (typeof niveles === 'string') niveles = []; 
             } catch (e) { niveles = []; stats = {}; }
@@ -136,7 +135,7 @@ app.get('/api/estudiantes', (req, res) => {
             return {
                 ...user,
                 progresoNiveles: niveles,
-                estadisticas: stats, // NUEVO: Enviamos el objeto parseado
+                estadisticas: stats,
                 nivelMax: maxNivel
             };
         });
@@ -153,13 +152,23 @@ app.get('/api/profesores', (req, res) => {
     });
 });
 
-// --- RUTA 6: ELIMINAR USUARIO ---
+// --- RUTA 6: ELIMINAR ESTUDIANTE ---
 app.delete('/api/estudiantes/:id', (req, res) => {
     const { id } = req.params;
     const sql = "DELETE FROM usuarios WHERE id = ?";
     db.query(sql, [id], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: "Usuario eliminado" });
+    });
+});
+
+// --- RUTA 7: ELIMINAR PROFESOR ---
+app.delete('/api/profesores/:id', (req, res) => {
+    const { id } = req.params;
+    const sql = "DELETE FROM usuarios WHERE id = ?";
+    db.query(sql, [id], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Profesor eliminado" });
     });
 });
 
