@@ -68,25 +68,22 @@ function App() {
   const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
 
   // Lógica para actualizar el estado del mapa
-  const actualizarMapa = (desafiosCompletados) => {
-    // IMPORTANTE: Asegurar que desafiosCompletados es un array antes de usarlo
-    if (!Array.isArray(desafiosCompletados)) {
-        desafiosCompletados = [];
-    }
+  const actualizarMapa = (listaDesafios) => {
+    // Si la lista es null o no es un array, usamos array vacío para evitar errores
+    const desafiosSeguros = Array.isArray(listaDesafios) ? listaDesafios : [];
 
-    // Los IDs principales de nivel (1, 2, 3...) que tienen al menos un desafío completado
+    // Filtramos SOLO los datos que sean texto y tengan guión (ej: "1-1").
+    // Esto ELIMINA el error "id.split is not a function" si hay números sueltos.
+    const desafiosValidos = desafiosSeguros.filter(id => typeof id === 'string' && id.includes('-'));
+
     const nivelesConProgreso = new Set(
-        desafiosCompletados
-            .filter(id => typeof id === 'string' && id.includes('-')) // FILTRO DE SEGURIDAD
-            .map(id => parseInt(id.split('-')[0]))
+        desafiosValidos.map(id => parseInt(id.split('-')[0]))
     );
     
     // Contar cuántos desafíos hay por cada nivel
-    const conteoDesafios = desafiosCompletados.reduce((acc, id) => {
-        if (typeof id === 'string' && id.includes('-')) {
-            const nivel = parseInt(id.split('-')[0]);
-            acc[nivel] = (acc[nivel] || 0) + 1;
-        }
+    const conteoDesafios = desafiosValidos.reduce((acc, id) => {
+        const nivel = parseInt(id.split('-')[0]);
+        acc[nivel] = (acc[nivel] || 0) + 1;
         return acc;
     }, {});
 
@@ -111,7 +108,7 @@ function App() {
         if (n.id > maxProgreso + 1) return { ...n, estado: 'bloqueado' };
         
         // Nivel 1 siempre es 'actual' si no hay progreso.
-        if (n.id === 1 && desafiosCompletados.length === 0) return { ...n, estado: 'actual' };
+        if (n.id === 1 && desafiosValidos.length === 0) return { ...n, estado: 'actual' };
 
         return n; 
     });
@@ -119,26 +116,29 @@ function App() {
   };
 
   const handleLoginExitoso = (datosUsuario) => {
-    // --- CORRECCIÓN CLAVE: Limpiar progresoNiveles para evitar el error 'split' ---
-    // Nos aseguramos que sea un array y filtramos SOLO strings válidos con guión.
+    // --- LIMPIEZA DE DATOS CRÍTICA ---
     let rawProgreso = datosUsuario.progresoNiveles;
+    
+    // Si no es un array, lo convertimos en uno vacío
     if (!Array.isArray(rawProgreso)) rawProgreso = [];
 
-    const desafiosCompletados = rawProgreso
-      .filter(item => typeof item === 'string' && item.includes('-')); 
+    // Limpiamos los datos: solo strings con guión (ej: "1-1")
+    // Aquí definimos 'desafiosCompletados' SIN acento
+    const desafiosCompletados = rawProgreso.filter(item => typeof item === 'string' && item.includes('-')); 
 
     const usuarioConInventario = {
         ...datosUsuario,
         inventarioGafas: datosUsuario.inventarioGafas || [0, 1], 
         inventarioSombreros: datosUsuario.inventarioSombreros || [0], 
         nivelCrecimiento: datosUsuario.nivelCrecimiento || 0,
-        // Usamos la lista de IDs de desafíos limpios
         progresoNiveles: desafiosCompletados 
     };
     setUsuario(usuarioConInventario); 
     
-    // Restaurar progreso del mapa con la lista limpia
-    actualizarMapa(desafiosCompletados);
+    // Solo actualizamos el mapa si es estudiante
+    if (datosUsuario.rol === 'estudiante') {
+        actualizarMapa(desafiosCompletados);
+    }
     
     setMostrarLogin(false);
     setMostrarLoginProfe(false);
@@ -155,7 +155,6 @@ function App() {
     if (nuevoUsuario.id) apiGuardar(nuevoUsuario).catch(err => console.error("Error guardando:", err));
   };
 
-  // Función modificada para recibir el ID del desafío (ej: "1-2")
   const guardarProgresoNivel = (desafioId) => {
     if (!usuario) return;
     const progresoActual = usuario.progresoNiveles || [];
@@ -163,11 +162,11 @@ function App() {
     if (!progresoActual.includes(desafioId)) {
         const nuevoProgreso = [...progresoActual, desafioId];
         
-        // Calculamos los niveles principales que tienen al menos 1 desafío completado
+        // Filtro de seguridad
+        const progresoValido = nuevoProgreso.filter(id => typeof id === 'string' && id.includes('-'));
+
         const nivelesConProgreso = new Set(
-            nuevoProgreso
-                .filter(id => typeof id === 'string' && id.includes('-'))
-                .map(id => parseInt(id.split('-')[0]))
+            progresoValido.map(id => parseInt(id.split('-')[0]))
         );
 
         const usuarioActualizado = { 
@@ -175,7 +174,6 @@ function App() {
             progresoNiveles: nuevoProgreso, 
             racha: (usuario.racha || 0) + 1, 
             gemas: (usuario.gemas || 0) + 50,
-            // nivelMax: Número de niveles principales (1-20) completados para el Perfil/Dashboard
             nivelMax: nivelesConProgreso.size
         };
         
@@ -195,11 +193,11 @@ function App() {
   const mostrarNavegacion = vistaActual !== 'bienvenida' && vistaActual !== 'dashboard_profe' && vistaActual !== 'dashboard_master' && vistaActual !== 'quiz';
   const mostrarToggleFlotante = ['bienvenida', 'dashboard_profe', 'dashboard_master'].includes(vistaActual);
 
-  // Mapeo auxiliar para saber el estado de un nivel (0-5 completados)
+  // Mapeo auxiliar
   const getLevelProgress = (nivelId) => {
-    const desafiosCompletados = usuario?.progresoNiveles || [];
-    if (!Array.isArray(desafiosCompletados)) return 0;
-    return desafiosCompletados.filter(id => typeof id === 'string' && id.startsWith(`${nivelId}-`)).length;
+    const lista = usuario?.progresoNiveles || [];
+    if (!Array.isArray(lista)) return 0;
+    return lista.filter(id => typeof id === 'string' && id.startsWith(`${nivelId}-`)).length;
   };
   
   return (
@@ -232,7 +230,7 @@ function App() {
               {niveles.map((nivel, index) => {
                 const residuo = index % 4;
                 let posicionclase = residuo === 1 ? 'layout-izquierda' : (residuo === 3 ? 'layout-derecha' : '');
-                const progreso = getLevelProgress(nivel.id); // 0 a 5
+                const progreso = getLevelProgress(nivel.id); 
                 
                 return (
                   <div key={nivel.id} className={`fila-nivel ${posicionclase}`}>
@@ -252,7 +250,6 @@ function App() {
                          {nivel.estado === 'completado' ? 'Wm' : (nivel.estado === 'actual' ? '⭐' : '🔒')}
                       </div>
                       <h3 className="etiqueta-nivel">{nivel.nombre}</h3>
-                      {/* Indicador de Progreso del Desafío */}
                       <p style={{marginTop:'5px', fontSize: '12px', fontWeight:'bold', color: progreso === 5 ? '#58cc02' : '#FF9600'}}>
                           {progreso} / 5 Desafíos
                       </p>
@@ -273,7 +270,7 @@ function App() {
               setVistaActual('mapa'); 
             }} 
             alPerder={manejarDerrota}
-            // PASO CRÍTICO: Pasamos la prop correctamente
+            // PASAMOS LA VARIABLE CORRECTA SIN ACENTOS
             desafiosCompletados={usuario?.progresoNiveles || []} 
         />}
         
