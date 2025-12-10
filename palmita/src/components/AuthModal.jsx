@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Lock, GraduationCap, CheckCircle, Crown, Key } from 'lucide-react';
+import { User, Lock, GraduationCap, CheckCircle, Crown, Key, Eye, EyeOff } from 'lucide-react';
 import { apiLogin, apiRegistro } from '../services/api';
 
 export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }) {
@@ -11,12 +11,14 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
   const [password, setPassword] = useState('');
-  const [email, setEmail] = useState(''); // Se usa solo para Profesor/Master
-  const [cedula, setCedula] = useState(''); // Se usa solo para Profesor
+  const [email, setEmail] = useState(''); 
+  const [cedula, setCedula] = useState('');
   const [edad, setEdad] = useState('');
   const [genero, setGenero] = useState('niño'); 
-  
   const [codigoMaster, setCodigoMaster] = useState('');
+
+  // Estado para visibilidad de contraseña
+  const [mostrarPassword, setMostrarPassword] = useState(false);
 
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -28,31 +30,32 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
     setError('');
     setCargando(true);
 
-    // DETERMINAR EL ROL
     const rol = modo === 'master' ? 'master' : (esProfesor ? 'teacher' : 'estudiante');
 
+    // Validación extra de edad al enviar
+    if (rol === 'estudiante' && modo === 'registro') {
+        const edadNum = Number(edad);
+        if (edadNum < 7 || edadNum > 12) {
+            setError("La edad debe estar entre 7 y 12 años");
+            setCargando(false);
+            return;
+        }
+    }
+
     try {
-      // --- CASO 1: LOGIN (Estudiantes, Profesores y DIRECTORES) ---
+      // --- CASO 1: LOGIN ---
       if (modo === 'login' || modo === 'master') {
-        
-        // Identificador: Si es estudiante, solo usamos el nombre. Si es profesor/master, usamos email.
-        const identificador = rol === 'estudiante' ? nombre : email; 
-        
+        const identificador = (rol === 'estudiante' || rol === 'master') ? nombre : email; 
         const usuarioEncontrado = await apiLogin(identificador, password);
         
-        // Validaciones de Rol
-        if (rol === 'master' && usuarioEncontrado.rol !== 'master') {
-            throw new Error("Esta cuenta no es de Director");
-        } else if (rol === 'teacher' && usuarioEncontrado.rol !== 'teacher') {
-            throw new Error("Esta cuenta no es de Profesor");
-        } else if (rol === 'estudiante' && usuarioEncontrado.rol !== 'estudiante') { 
-            throw new Error("Credenciales inválidas");
-        }
+        if (rol === 'master' && usuarioEncontrado.rol !== 'master') throw new Error("Cuenta no es de Director");
+        if (rol === 'teacher' && usuarioEncontrado.rol !== 'teacher') throw new Error("Cuenta no es de Profesor");
+        if (rol === 'estudiante' && usuarioEncontrado.rol !== 'estudiante') throw new Error("Credenciales inválidas");
 
         alAutenticar(usuarioEncontrado);
 
       } else {
-        // --- CASO 2: REGISTRO (Solo para Estudiantes/Profesores) ---
+        // --- CASO 2: REGISTRO ---
         const datosNuevoUsuario = {
           nombre: nombre.trim(),
           apellido: apellido.trim(),
@@ -60,10 +63,9 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
           edad: rol === 'estudiante' ? Number(edad) : null,
           genero: rol === 'estudiante' ? genero : null,
           rol: rol,
-          // EMAIL y CÉDULA solo se envían si es Profesor
-          email: rol === 'teacher' ? email : null, 
+          email: rol === 'teacher' ? email : (rol === 'master' ? 'director@palmita.com' : null), 
           cedula: rol === 'teacher' ? cedula : null,
-          codigoMaster: null
+          codigoMaster: rol === 'master' ? codigoMaster : null
         };
 
         await apiRegistro(datosNuevoUsuario);
@@ -77,12 +79,30 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
     }
   };
 
-  // Estilos auxiliares
-  const spacingStyle = { marginBottom: '15px', position: 'relative' };
-  const iconStyle = { position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', zIndex: 2, color: '#888' };
+  // ESTILOS COMPACTOS
+  const spacingStyle = { marginBottom: '8px', position: 'relative' }; 
+  const iconStyle = { position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', zIndex: 2, color: '#888', width: '18px' };
+  
+  // Estilo para el botón del ojo (ubicado a la derecha)
+  const eyeButtonStyle = { 
+    position: 'absolute', 
+    right: '15px', 
+    top: '50%', 
+    transform: 'translateY(-50%)', 
+    zIndex: 3, 
+    background: 'none', 
+    border: 'none', 
+    cursor: 'pointer', 
+    color: '#888',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0
+  };
+
   const inputStyle = { 
     width: '100%', 
-    padding: '12px 15px 12px 45px', 
+    padding: '10px 15px 10px 40px', 
     borderRadius: '12px', 
     border: '1px solid #333', 
     background: '#222', 
@@ -96,67 +116,39 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
     padding: '8px 15px',
     borderRadius: '10px',
     fontWeight: 'bold',
-    fontSize: '14px',
+    fontSize: '13px',
     cursor: 'pointer',
     border: '2px solid transparent',
     transition: 'all 0.2s',
   };
 
-  // Color dinámico del botón
   const getButtonColor = () => {
       if (modo === 'master') return '#FFD700';
       if (esProfesor) return '#0066FF';
       return '#58cc02'; 
   };
 
-  // Seccion de Tabs: Se omite la pestaña "Director" si no es la vista de Profesor.
   const renderTabs = () => {
-    // Si se accedió como profesor (esProfesor = true), debe ver todas las pestañas.
+    const tabStyle = (tipo) => ({
+        flex: 1, 
+        background: modo === tipo ? (tipo === 'master' ? '#FFD700' : '#333') : 'transparent', 
+        color: modo === tipo ? (tipo === 'master' ? '#111' : 'white') : '#666',
+        border: 'none', padding: '8px', borderRadius: '8px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer'
+    });
+
     if (esProfesor) {
       return (
-        <div className="auth-tabs" style={{ background: '#1a1a1a', padding: '5px', borderRadius: '15px', marginBottom: '25px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px' }}>
-          <button 
-              className={`auth-tab ${modo === 'login' ? 'activo' : ''}`} 
-              onClick={() => setModo('login')}
-              style={{ color: modo === 'login' ? 'white' : '#666' }}
-          >
-              Ingresar
-          </button>
-          <button 
-              className={`auth-tab ${modo === 'registro' ? 'activo' : ''}`} 
-              onClick={() => setModo('registro')}
-              style={{ color: modo === 'registro' ? 'white' : '#666' }}
-          >
-              Registrarse
-          </button>
-          <button 
-              className={`auth-tab ${modo === 'master' ? 'activo' : ''}`} 
-              onClick={() => setModo('master')}
-              style={{ color: modo === 'master' ? '#111' : '#888', background: modo === 'master' ? '#FFD700' : 'transparent', fontWeight: 'bold' }}
-          >
-              Director
-          </button>
+        <div style={{ background: '#1a1a1a', padding: '4px', borderRadius: '12px', marginBottom: '15px', display: 'flex', gap: '4px' }}>
+          <button onClick={() => setModo('login')} style={tabStyle('login')}>Ingresar</button>
+          <button onClick={() => setModo('registro')} style={tabStyle('registro')}>Registrarse</button>
+          <button onClick={() => setModo('master')} style={tabStyle('master')}>Director</button>
         </div>
       );
     }
-    
-    // Si es solo para Estudiantes (niños), solo muestra Ingresar y Registrarse
     return (
-      <div className="auth-tabs" style={{ background: '#1a1a1a', padding: '5px', borderRadius: '15px', marginBottom: '25px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
-        <button 
-            className={`auth-tab ${modo === 'login' ? 'activo' : ''}`} 
-            onClick={() => setModo('login')}
-            style={{ color: modo === 'login' ? 'white' : '#666' }}
-        >
-            Ingresar
-        </button>
-        <button 
-            className={`auth-tab ${modo === 'registro' ? 'activo' : ''}`} 
-            onClick={() => setModo('registro')}
-            style={{ color: modo === 'registro' ? 'white' : '#666' }}
-        >
-            Registrarse
-        </button>
+      <div style={{ background: '#1a1a1a', padding: '4px', borderRadius: '12px', marginBottom: '15px', display: 'flex', gap: '4px' }}>
+        <button onClick={() => setModo('login')} style={tabStyle('login')}>Ingresar</button>
+        <button onClick={() => setModo('registro')} style={tabStyle('registro')}>Registrarse</button>
       </div>
     );
   };
@@ -166,128 +158,120 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
       <div className="auth-overlay" style={{ background: 'rgba(0,0,0,0.85)' }}>
         <motion.div 
             className="auth-card" 
-            initial={{ scale: 0.9, opacity: 0 }} 
+            initial={{ scale: 0.95, opacity: 0 }} 
             animate={{ scale: 1, opacity: 1 }}
-            style={{ background: '#111', border: '1px solid #333', boxShadow: `0 0 30px ${getButtonColor()}40`, padding: '25px' }}
+            style={{ 
+                background: '#111', 
+                border: '1px solid #333', 
+                boxShadow: `0 0 30px ${getButtonColor()}40`, 
+                padding: '20px',
+                maxHeight: '90vh',
+                display: 'flex', 
+                flexDirection: 'column'
+            }}
         >
-          <button className="btn-cerrar-modal" onClick={alCerrar} style={{ color: '#fff' }}>×</button>
+          <button className="btn-cerrar-modal" onClick={alCerrar} style={{ color: '#fff', top: '10px', right: '10px' }}>×</button>
 
           {registroExitoso ? (
-            <div style={{ textAlign: 'center', padding: '30px 10px' }}>
-              <CheckCircle size={80} color="#58cc02" style={{ margin: '0 auto 20px' }} />
-              <h2 style={{color:'white', marginBottom:'10px'}}>¡Cuenta Creada!</h2>
+            <div style={{ textAlign: 'center', padding: '20px 10px' }}>
+              <CheckCircle size={60} color="#58cc02" style={{ margin: '0 auto 15px' }} />
+              <h2 style={{color:'white', marginBottom:'10px', fontSize: '20px'}}>¡Cuenta Creada!</h2>
               <button className="btn-auth-submit" onClick={() => { setRegistroExitoso(null); setModo('login'); }} style={{ width: '100%', background: '#58cc02' }}>Ir a Iniciar Sesión</button>
             </div>
           ) : (
             <>
-              {/* HEADER CON ICONO */}
-              <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              {/* HEADER COMPACTO */}
+              <div style={{ textAlign: 'center', marginBottom: '15px' }}>
                 {modo === 'master' ? (
-                    <Crown size={48} color="#FFD700" style={{ margin: '0 auto 10px', filter: 'drop-shadow(0 0 10px #FFD700)' }} />
+                    <Crown size={36} color="#FFD700" style={{ margin: '0 auto 5px' }} />
                 ) : (
-                    esProfesor ? 
-                    <GraduationCap size={48} color="#0066FF" style={{ margin: '0 auto 10px' }}/> : 
-                    null
+                    esProfesor ? <GraduationCap size={36} color="#0066FF" style={{ margin: '0 auto 5px' }}/> : null
                 )}
-                <h2 className="auth-titulo" style={{ color: 'white', fontSize: '24px' }}>
+                <h2 className="auth-titulo" style={{ color: 'white', fontSize: '20px', margin: 0 }}>
                     {modo === 'master' ? 'Acceso Director' : (modo === 'login' ? 'Acceder' : 'Registrarse')}
                 </h2>
               </div>
 
-              {error && <div style={{background: 'rgba(255,75,75,0.15)', padding:'12px', borderRadius:'10px', color: '#ff4b4b', textAlign: 'center', marginBottom: '20px', fontSize: '13px', border: '1px solid rgba(255,75,75,0.3)'}}>{error}</div>}
+              {error && <div style={{background: 'rgba(255,75,75,0.15)', padding:'8px', borderRadius:'8px', color: '#ff4b4b', textAlign: 'center', marginBottom: '10px', fontSize: '12px', border: '1px solid rgba(255,75,75,0.3)'}}>{error}</div>}
 
-              {/* PESTAÑAS DE NAVEGACIÓN (Renderizadas condicionalmente) */}
               {renderTabs()}
 
-              <form className="auth-form" onSubmit={handleSubmit}>
+              {/* FORMULARIO CON SCROLL */}
+              <form 
+                id="auth-form-main" 
+                className="auth-form" 
+                onSubmit={handleSubmit}
+                style={{ flex: 1, overflowY: 'auto', paddingRight: '5px' }} 
+              >
                 
-                {/* --- VISTA DIRECTOR (SOLO USUARIO Y CLAVE ÚNICA) --- */}
                 {modo === 'master' && (
                     <>
-                        <div className="input-group" style={spacingStyle}>
-                            <User size={20} style={iconStyle} />
+                        <div style={spacingStyle}><User style={iconStyle} /><input type="text" placeholder="Usuario" value={nombre} onChange={e => setNombre(e.target.value)} required style={{ ...inputStyle, borderColor: '#FFD700' }}/></div>
+                        <div style={spacingStyle}>
+                            <Key style={iconStyle} />
                             <input 
-                                type="text" 
-                                placeholder="Usuario" 
-                                value={nombre} 
-                                onChange={e => setNombre(e.target.value)} 
-                                required 
-                                style={{ ...inputStyle, borderColor: '#FFD700' }}
-                            />
-                        </div>
-                        <div className="input-group" style={spacingStyle}>
-                            <Key size={20} style={iconStyle} />
-                            <input 
-                                type="password" 
+                                type={mostrarPassword ? "text" : "password"} 
                                 placeholder="Clave Única" 
                                 value={password} 
                                 onChange={e => setPassword(e.target.value)} 
                                 required 
-                                style={{ ...inputStyle, borderColor: '#FFD700' }}
+                                style={{ ...inputStyle, borderColor: '#FFD700', paddingRight: '40px' }}
                             />
+                            <button type="button" onClick={() => setMostrarPassword(!mostrarPassword)} style={eyeButtonStyle}>
+                                {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
                         </div>
                     </>
                 )}
 
-                {/* --- VISTA NORMAL (LOGIN / REGISTRO) --- */}
                 {modo !== 'master' && (
                     <>
-                        {/* CAMPOS SOLO PARA REGISTRO */}
                         {modo === 'registro' && (
                             <>
-                                <div className="input-group" style={spacingStyle}>
-                                    <User size={20} style={iconStyle} />
-                                    <input type="text" placeholder="Nombre" value={nombre} onChange={e => setNombre(e.target.value)} required style={inputStyle} />
+                                <div style={spacingStyle}>
+                                    <User style={iconStyle} />
+                                    <input type="text" placeholder="Nombre" value={nombre} onChange={e => setNombre(e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, ''))} required style={inputStyle} />
                                 </div>
-                                <div className="input-group" style={spacingStyle}>
-                                    <User size={20} style={iconStyle}/>
-                                    <input type="text" placeholder="Apellido" value={apellido} onChange={e => setApellido(e.target.value)} required style={inputStyle} />
+                                <div style={spacingStyle}>
+                                    <User style={iconStyle}/>
+                                    <input type="text" placeholder="Apellido" value={apellido} onChange={e => setApellido(e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, ''))} required style={inputStyle} />
                                 </div>
                                 
                                 {!esProfesor && (
-                                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', alignItems: 'center' }}>
-                                        <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
-                                            <input type="number" placeholder="Edad" value={edad} onChange={e => setEdad(e.target.value)} required min="5" style={{...inputStyle, paddingLeft: '15px'}} />
+                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                        <div style={{ flex: 1, position: 'relative' }}>
+                                            <input 
+                                                type="number" 
+                                                placeholder="Edad" 
+                                                value={edad} 
+                                                onChange={e => {
+                                                    // VALIDACIÓN EDAD (MAX 12)
+                                                    const val = e.target.value;
+                                                    if (val === '' || (Number(val) <= 12)) {
+                                                        setEdad(val);
+                                                    }
+                                                }} 
+                                                required 
+                                                min="7" 
+                                                max="12" 
+                                                style={{...inputStyle, paddingLeft: '10px', textAlign: 'center'}} 
+                                            />
                                         </div>
-                                        <div style={{ flex: 1, display: 'flex', gap: '5px' }}>
-                                            <button 
-                                                type="button"
-                                                onClick={() => setGenero('niño')} 
-                                                style={{
-                                                    ...buttonStyle,
-                                                    flex: 1,
-                                                    background: genero === 'niño' ? '#1e90ff' : '#222',
-                                                    color: genero === 'niño' ? 'white' : '#888',
-                                                    borderColor: genero === 'niño' ? '#1e90ff' : '#333'
-                                                }}
-                                            >
-                                                Niño
-                                            </button>
-                                            <button 
-                                                type="button"
-                                                onClick={() => setGenero('niña')}
-                                                style={{
-                                                    ...buttonStyle,
-                                                    flex: 1,
-                                                    background: genero === 'niña' ? '#ff69b4' : '#222',
-                                                    color: genero === 'niña' ? 'white' : '#888',
-                                                    borderColor: genero === 'niña' ? '#ff69b4' : '#333'
-                                                }}
-                                            >
-                                                Niña
-                                            </button>
+                                        <div style={{ flex: 1.5, display: 'flex', gap: '4px' }}>
+                                            <button type="button" onClick={() => setGenero('niño')} style={{...buttonStyle, flex: 1, background: genero === 'niño' ? '#1e90ff' : '#222', color: genero === 'niño' ? 'white' : '#888'}}>Niño</button>
+                                            <button type="button" onClick={() => setGenero('niña')} style={{...buttonStyle, flex: 1, background: genero === 'niña' ? '#ff69b4' : '#222', color: genero === 'niña' ? 'white' : '#888'}}>Niña</button>
                                         </div>
                                     </div>
                                 )}
                                 
                                 {esProfesor && (
                                     <>
-                                        <div className="input-group" style={spacingStyle}>
-                                            <User size={20} style={iconStyle}/>
-                                            <input type="text" placeholder="Cédula" value={cedula} onChange={e => setCedula(e.target.value)} required style={inputStyle} />
+                                        <div style={spacingStyle}>
+                                            <User style={iconStyle}/>
+                                            <input type="text" placeholder="Cédula" value={cedula} onChange={e => setCedula(e.target.value.replace(/[^0-9]/g, ''))} required maxLength={9} style={inputStyle} />
                                         </div>
-                                        <div className="input-group" style={spacingStyle}>
-                                            <User size={20} style={iconStyle}/>
+                                        <div style={spacingStyle}>
+                                            <User style={iconStyle}/>
                                             <input type="email" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)} required style={inputStyle} />
                                         </div>
                                     </>
@@ -295,62 +279,62 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
                             </>
                         )}
 
-                        {/* --- CAMPO DE USUARIO (LOGIN DE ESTUDIANTES) Y EMAIL (LOGIN DE PROFESORES) --- */}
                         {(!esProfesor && modo === 'login') && ( 
-                           <div className="input-group" style={spacingStyle}>
-                                <User size={20} style={iconStyle}/>
-                                <input 
-                                    type="text" 
-                                    placeholder="Usuario" // Texto corregido
-                                    value={nombre} 
-                                    onChange={e => setNombre(e.target.value)} 
-                                    required 
-                                    style={inputStyle}
-                                />
-                            </div>
+                           <div style={spacingStyle}><User style={iconStyle}/><input type="text" placeholder="Usuario" value={nombre} onChange={e => setNombre(e.target.value)} required style={inputStyle}/></div>
                         )}
                         
                         {(esProfesor && modo === 'login') && (
-                            <div className="input-group" style={spacingStyle}>
-                                <User size={20} style={iconStyle}/>
-                                <input 
-                                    type="text" 
-                                    placeholder="Correo Electrónico" 
-                                    value={email} 
-                                    onChange={e => setEmail(e.target.value)} 
-                                    required
-                                    style={inputStyle}
-                                />
-                            </div>
+                            <div style={spacingStyle}><User style={iconStyle}/><input type="text" placeholder="Correo Electrónico" value={email} onChange={e => setEmail(e.target.value)} required style={inputStyle}/></div>
                         )}
 
-
-                        <div className="input-group" style={spacingStyle}>
-                            <Lock size={20} style={iconStyle}/>
-                            <input type="password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)} required style={inputStyle} />
+                        <div style={spacingStyle}>
+                            <Lock style={iconStyle}/>
+                            <input 
+                                type={mostrarPassword ? "text" : "password"} 
+                                placeholder="Contraseña" 
+                                value={password} 
+                                onChange={e => {
+                                    // VALIDACIÓN CONTRASEÑA: Max 6 chars, Solo letras y números
+                                    const val = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
+                                    setPassword(val);
+                                }} 
+                                required 
+                                maxLength={6}
+                                style={{ ...inputStyle, paddingRight: '40px' }} // Espacio para el ojo
+                            />
+                            <button type="button" onClick={() => setMostrarPassword(!mostrarPassword)} style={eyeButtonStyle}>
+                                {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
                         </div>
                     </>
                 )}
-
-                <motion.button 
-                    whileTap={{ scale: 0.95 }} 
-                    whileHover={{ scale: 1.02 }}
-                    type="submit" 
-                    className="btn-auth-submit" 
-                    disabled={cargando}
-                    style={{ 
-                        backgroundColor: getButtonColor(),
-                        color: modo === 'master' ? 'black' : 'white',
-                        fontWeight: '800',
-                        marginTop: '10px',
-                        padding: '14px',
-                        borderRadius: '12px',
-                        boxShadow: `0 4px 15px ${getButtonColor()}60`
-                    }}
-                >
-                    {cargando ? 'Procesando...' : (modo === 'registro' ? 'Crear Cuenta' : 'Entrar')}
-                </motion.button>
               </form>
+
+              {/* BOTÓN FIJO AL FINAL */}
+              <div style={{ paddingTop: '10px', marginTop: 'auto' }}>
+                  <motion.button 
+                      form="auth-form-main"
+                      whileTap={{ scale: 0.95 }} 
+                      whileHover={{ scale: 1.02 }}
+                      type="submit" 
+                      className="btn-auth-submit" 
+                      disabled={cargando}
+                      style={{ 
+                          backgroundColor: getButtonColor(),
+                          color: modo === 'master' ? 'black' : 'white',
+                          fontWeight: '800',
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '12px',
+                          boxShadow: `0 4px 15px ${getButtonColor()}60`,
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '15px'
+                      }}
+                  >
+                      {cargando ? 'Procesando...' : (modo === 'registro' ? 'Crear Cuenta' : 'Entrar')}
+                  </motion.button>
+              </div>
             </>
           )}
         </motion.div>
