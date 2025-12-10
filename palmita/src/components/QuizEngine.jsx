@@ -1,9 +1,9 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
-import { X, CheckCircle, AlertCircle, Heart, RefreshCw, Frown } from "lucide-react";
+import { X, CheckCircle, AlertCircle, Heart, RefreshCw, Frown, Sparkles } from "lucide-react";
 import audio from '../utils/audio';
 
-// === BASE DE DATOS: 20 NIVELES x 5 VARIANTES CADA UNO (100 PREGUNTAS TOTAL) ===
+// === BASE DE DATOS: 20 NIVELES ===
 const QUESTIONS_DB = {
   // --- NIVEL 1: ALGORITMOS (SECUENCIAS) ---
   1: [
@@ -13,10 +13,7 @@ const QUESTIONS_DB = {
     { titulo: "Nivel 1: Algoritmos", instruccion: "Algoritmo para una planta:", contenido: "🌱 Semilla ➡️ 🌻 Flor", opciones: [{ id: "a", text: "Agua -> Esperar -> Sembrar" }, { id: "b", text: "Cosechar -> Sembrar -> Regar" }, { id: "c", text: "Sembrar -> Regar -> Esperar" }, { id: "d", text: "Esperar -> Sembrar -> Regar" }], correcta: "c" },
     { titulo: "Nivel 1: Algoritmos", instruccion: "Lavarse las manos:", contenido: "🦠 Sucias ➡️ ✨ Limpias", opciones: [{ id: "a", text: "Mojar -> Jabón -> Frotar -> Enjuagar" }, { id: "b", text: "Secar -> Mojar -> Jabón" }, { id: "c", text: "Jabón -> Secar -> Mojar" }, { id: "d", text: "Frotar -> Secar -> Mojar" }], correcta: "a" }
   ],
-  // ... (RESTO DE LA BASE DE DATOS DE PREGUNTAS IGUAL QUE ANTES) ...
-  // Para ahorrar espacio, asumo que tienes el resto de QUESTIONS_DB copiado del mensaje anterior.
-  // Si no, avísame y te lo pego completo de nuevo.
-    // --- NIVEL 2: INSTRUCCIONES PRECISAS ---
+  // --- NIVEL 2: INSTRUCCIONES PRECISAS ---
   2: [
     { titulo: "Nivel 2: Instrucciones", instruccion: "Robot mira al NORTE (⬆️). Meta al ESTE (➡️).", contenido: "🤖 ⬆️ ... 🏁 ➡️", opciones: [{ id: "a", text: "Girar Izquierda" }, { id: "b", text: "Seguir Derecho" }, { id: "c", text: "Girar Derecha" }, { id: "d", text: "Saltar" }], correcta: "c" },
     { titulo: "Nivel 2: Instrucciones", instruccion: "El dron mira al SUR (⬇️). Meta al OESTE (⬅️).", contenido: "🚁 ⬇️ ... 🏁 ⬅️", opciones: [{ id: "a", text: "Girar Derecha" }, { id: "b", text: "Girar Izquierda" }, { id: "c", text: "Subir" }, { id: "d", text: "Retroceder" }], correcta: "a" }, 
@@ -32,35 +29,70 @@ const QUESTIONS_DB = {
     { titulo: "Nivel 3: Patrones", instruccion: "Patrón de música:", contenido: "🥁 🎸 🥁 🎸 ❓", opciones: [{ id: "a", text: "🎹 Piano" }, { id: "b", text: "🎸 Guitarra" }, { id: "c", text: "🥁 Tambor" }, { id: "d", text: "🎻 Violín" }], correcta: "c" },
     { titulo: "Nivel 3: Patrones", instruccion: "Día y Noche:", contenido: "☀️ 🌙 ☀️ 🌙 ❓", opciones: [{ id: "a", text: "☁️ Nube" }, { id: "b", text: "☀️ Sol" }, { id: "c", text: "🌙 Luna" }, { id: "d", text: "🌧️ Lluvia" }], correcta: "b" }
   ],
-  // ... CONTINÚA CON LOS NIVELES 4-20 DEL ARCHIVO ANTERIOR ...
-  // (Si necesitas el bloque completo de 4 a 20, dímelo y lo repito)
-  // POR SEGURIDAD, ASUMO QUE TIENES LA BASE DE DATOS. SI NO, ESTE ES EL COMPONENTE COMPLETO CON LA LÓGICA CORREGIDA:
 };
 
-// COMPONENTE CORREGIDO
+// === LISTA DE 40 FRASES MOTIVADORAS ===
+const FRASES_MOTIVADORAS = [
+  "¡Casi lo tienes, inténtalo de nuevo! 🚀",
+  "¡No te rindas, tú puedes! 💪",
+  "¡Los errores nos ayudan a aprender! 🧠",
+  "¡Sigue adelante, vas muy bien! 🌟",
+  "¡Un intento más y lo lograrás! 🔥",
+  "¡Confía en ti, eres genial! 🌈",
+  "¡Aprender es un superpoder! ⚡",
+  "¡Respira y prueba otra vez! 🍃",
+  "¡El esfuerzo tiene recompensa! 🏆",
+  "¡Eres más inteligente de lo que crees! 🤓",
+  "¡Cada error es un paso hacia el éxito! 👣",
+  "¡Lo estás haciendo genial, sigue así! 🎈",
+  "¡No pasa nada, vuelve a probar! 👍",
+  "¡Tú eres capaz de cosas increíbles! ✨",
+  "¡La práctica hace al maestro! 🎻",
+  "¡Eres un campeón/campeona en proceso! 🏅",
+  "¡Sigue intentando, estás muy cerca! 🎯",
+  "¡Tu cerebro está creciendo! 🌱",
+  "¡No dejes que un fallo te detenga! 🛑",
+  "¡Eres valiente por intentarlo! 🦁",
+  "¡Aprender es divertido, sigue jugando! 🎮",
+  "¡Hoy es un buen día para aprender algo nuevo! ☀️",
+  "¡Eres una estrella brillante! ⭐",
+  "¡Cree en ti mismo y volarás alto! 🦋",
+  "¡Persiste y triunfarás! 🏔️",
+  "¡Tus ideas son importantes! 💡",
+  "¡Eres único y especial! 🦄",
+  "¡El éxito es la suma de pequeños esfuerzos! 🧱",
+  "¡Nunca dejes de soñar y aprender! 🌙",
+  "¡Eres fuerte, eres listo/a, eres importante! ❤️",
+  "¡Vamos, tú puedes resolverlo! 🧩",
+  "¡Mira qué lejos has llegado! 🔭",
+  "¡Sigue tu curiosidad! 🔍",
+  "¡Eres un explorador del conocimiento! 🗺️",
+  "¡Inténtalo una vez más con fuerza! 💥",
+  "¡No hay problema sin solución! 🗝️",
+  "¡Eres un genio en potencia! 🧞",
+  "¡Sigue brillando, no te apagues! 🕯️",
+  "¡El camino al éxito está lleno de intentos! 🛤️",
+  "¡Lo importante es no dejar de intentar! 🔄"
+];
+
 export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 1, desafiosCompletados = [] }) {
   const [preguntaActual, setPreguntaActual] = useState(null);
   const [quizIdActual, setQuizIdActual] = useState(null); 
+  const [fraseMotivacional, setFraseMotivacional] = useState(""); 
   
-  // CORRECCIÓN: Esta función ahora recibe la lista 'completados' como argumento
   const seleccionarNuevoQuiz = (targetNivelId, completados) => {
-    // Si no hay base de datos para este nivel, usar nivel 1 por defecto
     const pool = QUESTIONS_DB[targetNivelId] || QUESTIONS_DB[1];
-    
-    if (!pool) return; // Seguridad extra
+    if (!pool) return; 
 
-    // 1. Crear lista de variantes disponibles
     const variantesDisponibles = pool
       .map((_, index) => index)
       .filter(index => !completados.includes(`${targetNivelId}-${index + 1}`));
 
     let selectedIndex;
-    
     if (variantesDisponibles.length > 0) {
       const randomAvailableIndex = Math.floor(Math.random() * variantesDisponibles.length);
       selectedIndex = variantesDisponibles[randomAvailableIndex];
     } else {
-      // Si todo está completado, elegir al azar
       selectedIndex = Math.floor(Math.random() * pool.length);
     }
     
@@ -72,7 +104,6 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
   };
   
   useEffect(() => {
-    // CORRECCIÓN: Pasamos 'desafiosCompletados' explícitamente a la función
     seleccionarNuevoQuiz(nivelId, desafiosCompletados);
     setSeleccion(null);
     setEstado("pendiente");
@@ -82,6 +113,11 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
   const [seleccion, setSeleccion] = useState(null);
   const [estado, setEstado] = useState("pendiente"); 
   const [vidas, setVidas] = useState(3); 
+
+  const generarFrase = () => {
+    const indice = Math.floor(Math.random() * FRASES_MOTIVADORAS.length);
+    setFraseMotivacional(FRASES_MOTIVADORAS[indice]);
+  };
 
   const comprobarRespuesta = () => {
     if (!seleccion || estado === 'correcto' || estado === 'derrota' || !preguntaActual) return;
@@ -94,12 +130,16 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
       setVidas(nuevasVidas);
       audio.playSfx('error');
       
+      generarFrase(); 
+
       if (nuevasVidas > 0) {
-        setEstado("error_intento");
+        setEstado("error_intento"); // Activa el POPUP
+        
+        // --- MANTIENE LOS 5 SEGUNDOS (5000ms) ---
         setTimeout(() => {
             setEstado("pendiente");
             setSeleccion(null); 
-        }, 1500);
+        }, 5000); 
       } else {
         setEstado("derrota");
       }
@@ -108,10 +148,7 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
 
   const handleReintentar = () => {
       if (alPerder) alPerder();
-      
-      // Al reintentar, volvemos a seleccionar usando la lista actual
       seleccionarNuevoQuiz(nivelId, desafiosCompletados); 
-      
       setVidas(3);
       setEstado("pendiente");
       setSeleccion(null);
@@ -125,6 +162,43 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
 
   return (
     <div className="quiz-container">
+      {/* POPUP DE ERROR (FRASE MOTIVACIONAL EN EL CENTRO) */}
+      <AnimatePresence>
+        {estado === 'error_intento' && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 3000,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(3px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <motion.div 
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              style={{
+                background: '#222', border: '4px solid #ff4b4b',
+                padding: '30px', borderRadius: '25px', textAlign: 'center',
+                maxWidth: '90%', width: '400px',
+                boxShadow: '0 0 50px rgba(255, 75, 75, 0.4)'
+              }}
+            >
+              <motion.div 
+                animate={{ rotate: [0, -10, 10, 0] }} 
+                transition={{ duration: 0.5 }}
+                style={{ marginBottom: '15px', display: 'flex', justifyContent: 'center' }}
+              >
+                <AlertCircle size={80} color="#ff4b4b" fill="rgba(255, 75, 75, 0.2)" />
+              </motion.div>
+              
+              <h2 style={{ color: '#ff4b4b', margin: '0 0 10px 0', fontSize: '28px' }}>¡Ups!</h2>
+              <p style={{ color: 'white', fontSize: '18px', fontWeight: 'bold', lineHeight: '1.4' }}>
+                {fraseMotivacional}
+              </p>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* HEADER */}
       <div className="quiz-header">
         <button className="btn-cerrar" onClick={alCerrar}><X size={32} color="#aaa" /></button>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: '#ff4b4b', fontWeight: '800', fontSize: '22px' }}>
@@ -132,15 +206,23 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
         </div>
       </div>
 
+      {/* CONTENIDO DEL JUEGO */}
       <div className="quiz-contenido">
         {estado === 'derrota' ? (
-            <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} style={{ textAlign: 'center' }}>
-                <div style={{ background: 'rgba(255, 75, 75, 0.2)', width: '100px', height: '100px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                    <Frown size={60} color="#ff4b4b" />
+            <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} style={{ textAlign: 'center', padding: '20px' }}>
+                <div style={{ background: 'rgba(255, 75, 75, 0.2)', width: '120px', height: '120px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                    <Frown size={70} color="#ff4b4b" />
                 </div>
-                <h2 style={{ color: '#ff4b4b' }}>¡Oh no!</h2>
-                <p style={{ color: '#aaa', fontSize: '18px', marginBottom: '20px' }}>Te has quedado sin vidas.<br/><span style={{ fontSize: '14px' }}>(-1 Racha, -20 Gemas)</span></p>
-                <p style={{ color: 'white', marginBottom: '30px' }}>Intenta de nuevo con otra pregunta.</p>
+                <h2 style={{ color: '#ff4b4b', fontSize: '28px', marginBottom: '10px' }}>¡Casi lo logras!</h2>
+                
+                {/* Frase Motivacional en Pantalla de Derrota */}
+                <div style={{ background: '#333', padding: '15px', borderRadius: '15px', marginBottom: '20px', border: '2px dashed #ff4b4b' }}>
+                    <p style={{ color: '#FFD700', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
+                        {fraseMotivacional || "¡No te rindas!"}
+                    </p>
+                </div>
+
+                <p style={{ color: '#aaa', fontSize: '16px', marginBottom: '30px' }}>Te has quedado sin vidas.<br/><span style={{ fontSize: '14px' }}>(-1 Racha, -20 Gemas)</span></p>
             </motion.div>
         ) : (
             <>
@@ -166,11 +248,17 @@ export default function QuizEngine({ alCerrar, alCompletar, alPerder, nivelId = 
         )}
       </div>
 
+      {/* FOOTER (Barra Inferior) */}
       <div className={`quiz-footer ${estado === 'derrota' || estado === 'error_intento' ? 'error' : (estado === 'correcto' ? 'correcto' : '')}`}>
         <div className="mensaje-feedback">
           {estado === 'correcto' && <div className="feedback-content exito"><CheckCircle size={40} fill="#58cc02" color="white" /><div><h3>¡Correcto!</h3></div></div>}
-          {estado === 'error_intento' && <div className="feedback-content error"><AlertCircle size={40} fill="#ff4b4b" color="white" /><div><h3>¡Incorrecto!</h3></div></div>}
-          {estado === 'derrota' && <div className="feedback-content error"><RefreshCw size={40} color="white" /><div><h3>Fin del juego</h3></div></div>}
+          
+          {estado === 'error_intento' && (
+             <div className="feedback-content error" style={{opacity: 0.5}}>
+             </div>
+          )}
+
+          {estado === 'derrota' && <div className="feedback-content error"><Sparkles size={40} color="#FFD700" /><div><h3>¡Sigue intentando!</h3></div></div>}
         </div>
 
         {estado === 'correcto' && <button className="btn-comprobar correcto" onClick={avanzar}>CONTINUAR</button>}
