@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Lock, GraduationCap, CheckCircle, Crown, Key, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, GraduationCap, CheckCircle, Crown, Key } from 'lucide-react';
 import { apiLogin, apiRegistro } from '../services/api';
 
 export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }) {
@@ -17,9 +17,6 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
   const [genero, setGenero] = useState('niño'); 
   const [codigoMaster, setCodigoMaster] = useState('');
 
-  // Estado para visibilidad de contraseña
-  const [mostrarPassword, setMostrarPassword] = useState(false);
-
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
   const [registroExitoso, setRegistroExitoso] = useState(null);
@@ -31,16 +28,6 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
     setCargando(true);
 
     const rol = modo === 'master' ? 'master' : (esProfesor ? 'teacher' : 'estudiante');
-
-    // Validación extra de edad al enviar
-    if (rol === 'estudiante' && modo === 'registro') {
-        const edadNum = Number(edad);
-        if (edadNum < 7 || edadNum > 12) {
-            setError("La edad debe estar entre 7 y 12 años");
-            setCargando(false);
-            return;
-        }
-    }
 
     try {
       // --- CASO 1: LOGIN ---
@@ -79,30 +66,12 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
     }
   };
 
-  // ESTILOS COMPACTOS
-  const spacingStyle = { marginBottom: '8px', position: 'relative' }; 
+  // ESTILOS COMPACTOS (Para que quepa todo)
+  const spacingStyle = { marginBottom: '8px', position: 'relative' }; // Reducido de 15px a 8px
   const iconStyle = { position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', zIndex: 2, color: '#888', width: '18px' };
-  
-  // Estilo para el botón del ojo (ubicado a la derecha)
-  const eyeButtonStyle = { 
-    position: 'absolute', 
-    right: '15px', 
-    top: '50%', 
-    transform: 'translateY(-50%)', 
-    zIndex: 3, 
-    background: 'none', 
-    border: 'none', 
-    cursor: 'pointer', 
-    color: '#888',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0
-  };
-
   const inputStyle = { 
     width: '100%', 
-    padding: '10px 15px 10px 40px', 
+    padding: '10px 15px 10px 40px', // Padding reducido ligeramente
     borderRadius: '12px', 
     border: '1px solid #333', 
     background: '#222', 
@@ -165,7 +134,7 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
                 border: '1px solid #333', 
                 boxShadow: `0 0 30px ${getButtonColor()}40`, 
                 padding: '20px',
-                maxHeight: '90vh',
+                maxHeight: '90vh', // Asegura que no se salga de pantalla
                 display: 'flex', 
                 flexDirection: 'column'
             }}
@@ -201,26 +170,13 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
                 id="auth-form-main" 
                 className="auth-form" 
                 onSubmit={handleSubmit}
-                style={{ flex: 1, overflowY: 'auto', paddingRight: '5px' }} 
+                style={{ flex: 1, overflowY: 'auto', paddingRight: '5px' }} // Scroll si es necesario
               >
                 
                 {modo === 'master' && (
                     <>
                         <div style={spacingStyle}><User style={iconStyle} /><input type="text" placeholder="Usuario" value={nombre} onChange={e => setNombre(e.target.value)} required style={{ ...inputStyle, borderColor: '#FFD700' }}/></div>
-                        <div style={spacingStyle}>
-                            <Key style={iconStyle} />
-                            <input 
-                                type={mostrarPassword ? "text" : "password"} 
-                                placeholder="Clave Única" 
-                                value={password} 
-                                onChange={e => setPassword(e.target.value)} 
-                                required 
-                                style={{ ...inputStyle, borderColor: '#FFD700', paddingRight: '40px' }}
-                            />
-                            <button type="button" onClick={() => setMostrarPassword(!mostrarPassword)} style={eyeButtonStyle}>
-                                {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
-                        </div>
+                        <div style={spacingStyle}><Key style={iconStyle} /><input type="password" placeholder="Clave Única" value={password} onChange={e => setPassword(e.target.value)} required style={{ ...inputStyle, borderColor: '#FFD700' }}/></div>
                     </>
                 )}
 
@@ -240,22 +196,7 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
                                 {!esProfesor && (
                                     <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                                         <div style={{ flex: 1, position: 'relative' }}>
-                                            <input 
-                                                type="number" 
-                                                placeholder="Edad" 
-                                                value={edad} 
-                                                onChange={e => {
-                                                    // VALIDACIÓN EDAD (MAX 12)
-                                                    const val = e.target.value;
-                                                    if (val === '' || (Number(val) <= 12)) {
-                                                        setEdad(val);
-                                                    }
-                                                }} 
-                                                required 
-                                                min="7" 
-                                                max="12" 
-                                                style={{...inputStyle, paddingLeft: '10px', textAlign: 'center'}} 
-                                            />
+                                            <input type="number" placeholder="Edad" value={edad} onChange={e => setEdad(e.target.value)} required min="5" style={{...inputStyle, paddingLeft: '10px', textAlign: 'center'}} />
                                         </div>
                                         <div style={{ flex: 1.5, display: 'flex', gap: '4px' }}>
                                             <button type="button" onClick={() => setGenero('niño')} style={{...buttonStyle, flex: 1, background: genero === 'niño' ? '#1e90ff' : '#222', color: genero === 'niño' ? 'white' : '#888'}}>Niño</button>
@@ -289,22 +230,7 @@ export default function AuthModal({ alCerrar, alAutenticar, esProfesor = false }
 
                         <div style={spacingStyle}>
                             <Lock style={iconStyle}/>
-                            <input 
-                                type={mostrarPassword ? "text" : "password"} 
-                                placeholder="Contraseña" 
-                                value={password} 
-                                onChange={e => {
-                                    // VALIDACIÓN CONTRASEÑA: Max 6 chars, Solo letras y números
-                                    const val = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
-                                    setPassword(val);
-                                }} 
-                                required 
-                                maxLength={6}
-                                style={{ ...inputStyle, paddingRight: '40px' }} // Espacio para el ojo
-                            />
-                            <button type="button" onClick={() => setMostrarPassword(!mostrarPassword)} style={eyeButtonStyle}>
-                                {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
+                            <input type="password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)} required style={inputStyle} />
                         </div>
                     </>
                 )}
